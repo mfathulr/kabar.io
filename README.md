@@ -229,4 +229,4 @@ Kolom utama yang dipakai:
 
 ## Lisensi
 
-Belum ditentukan.
+MIT License. Lihat file [`LICENSE`](./LICENSE) untuk teks lengkap.
