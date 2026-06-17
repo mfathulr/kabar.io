@@ -1,0 +1,22 @@
+# Central config for non-secret runtime constants.
+# Available NewsData categories:
+# - politics
+# - business
+# - technology
+# - health
+newsdata:
+  base_url: https://newsdata.io/api/1
+  country: id
+  language: id,en
+  page_size: 10
+  categories:
+    - politics
+    - business
+    - technology
+    - health
+
+gemini:
+  model: gemini-3.5-flash
+
+output:
+  csv: data/news.csv

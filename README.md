@@ -17,6 +17,8 @@
 kabar.io/
 ├── .env
 ├── config.py
+├── config/
+│   └── settings.yml
 ├── collectors/
 │   └── newsdata_client.py
 ├── processors/
@@ -56,25 +58,57 @@ pip install -r requirements.txt
 
 ## Konfigurasi Env
 
-Buat file `.env` di root project:
+Pakai `.env` di root project untuk secret:
 
 ```env
 NEWSDATA_API_KEY=your_key_here
 GEMINI_API_KEYS=key1,key2,key3
 ```
 
-Opsional:
-
-```env
-GEMINI_MODEL=gemini-3.5-flash
-OUTPUT_CSV=data/news.csv
-```
+Setting non-secret ada di `config/settings.yml`.
 
 Catatan:
 
 - `NEWSDATA_API_KEY` wajib untuk fetch berita
 - `GEMINI_API_KEYS` dipakai untuk sentiment analysis
 - Tidak ada hardcoded key di source code
+
+## Config YAML
+
+Edit file ini untuk ubah category dan constant lain:
+
+```text
+config/settings.yml
+```
+
+Contoh isi:
+
+```yaml
+# Categories enabled by default in this project:
+# - politics
+# - business
+# - technology
+# - health
+newsdata:
+  base_url: https://newsdata.io/api/1
+  country: id
+  language: id,en
+  page_size: 10
+  categories:
+    - politics
+    - business
+    - technology
+    - health
+
+gemini:
+  model: gemini-3.5-flash
+
+output:
+  csv: data/news.csv
+```
+
+Kalau mau pakai kategori tertentu saja, cukup hapus item yang tidak dibutuhkan dari `categories`.
+Kalau kamu mau cek daftar kategori resmi NewsData.io yang lebih lengkap, rujuk dokumentasi resminya karena project ini hanya mengaktifkan 4 kategori di config default.
 
 ## Cara Jalan
 
@@ -104,7 +138,7 @@ python pipeline.py --skip-sentiment
 Hasil pipeline disimpan ke:
 
 ```text
-data/news_raw.csv
+data/news.csv
 ```
 
 Kolom utama yang dipakai:
@@ -133,6 +167,7 @@ Kolom utama yang dipakai:
 - CSV akan dideduplicate berdasarkan `article_id`
 - Gemini API free tier dipakai lewat `gemini-3.5-flash`
 - Kalau ada beberapa key di `GEMINI_API_KEYS`, sistem akan mencoba key berikutnya saat key sebelumnya kena limit atau error jaringan
+- `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan output CSV
 
 ## Lisensi
 
