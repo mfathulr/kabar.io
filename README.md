@@ -7,7 +7,7 @@
 - Ambil berita dari beberapa kategori NewsData.io
 - Pagination lewat `nextPage`
 - Clean data dengan `pandas`
-- Analisis sentimen dengan Gemini `gemini-3.5-flash`
+- Analisis sentimen dengan Gemini `gemini-2.5-flash`
 - Simpan hasil ke Neon Postgres, fallback ke CSV jika DB tidak tersedia
 - Deduplication berdasarkan `article_id`
 - Mode cepat tanpa sentiment untuk testing
@@ -107,7 +107,7 @@ newsdata:
     - health
 
 gemini:
-  model: gemini-3.5-flash
+  model: gemini-2.5-flash
 
 output:
   csv: data/news.csv
@@ -259,7 +259,7 @@ Kolom utama yang dipakai:
 - Kalau API mengembalikan `429`, artikel pada kategori itu akan dilewati
 - Sentiment diproses per batch 10 baris dengan jeda 1 detik antar batch
 - Neon dan CSV sama-sama dedupe berdasarkan `article_id`
-- Gemini API free tier dipakai lewat `gemini-3.5-flash`
+- Gemini API free tier dipakai lewat `gemini-2.5-flash`
 - Kalau ada beberapa key di `GEMINI_API_KEYS`, sistem akan mencoba key berikutnya saat key sebelumnya kena limit atau error jaringan
 - `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan fallback CSV
 

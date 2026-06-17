@@ -23,7 +23,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "page_size": 10,
         "categories": ["politics", "business", "technology", "health"],
     },
-    "gemini": {"model": "gemini-3.5-flash"},
+    "gemini": {"model": "gemini-2.5-flash"},
     "output": {"csv": "data/news.csv"},
 }
 
