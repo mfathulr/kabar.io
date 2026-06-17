@@ -9,7 +9,7 @@ from config import OUTPUT_CSV
 from collectors.newsdata_client import NewsDataClient
 from processors.cleaner import clean_articles
 from processors.sentiment import analyze_sentiment
-from storage.csv_handler import save_to_csv
+from storage.neon_handler import save_with_fallback
 
 
 def main() -> None:
@@ -39,7 +39,7 @@ def main() -> None:
     else:
         final_df = analyze_sentiment(cleaned_df)
 
-    save_to_csv(final_df, OUTPUT_CSV)
+    save_with_fallback(final_df, OUTPUT_CSV)
 
     if "sentiment" in final_df.columns and not final_df.empty:
         sentiment_distribution = dict(Counter(final_df["sentiment"].fillna("unknown")))

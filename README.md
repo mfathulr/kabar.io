@@ -1,6 +1,6 @@
 # kabar.io
 
-`kabar.io` adalah pipeline Python untuk mengambil berita Indonesia dari **NewsData.io**, membersihkan data, memberi label sentimen dengan **Gemini free tier**, lalu menyimpannya ke CSV.
+`kabar.io` adalah pipeline Python untuk mengambil berita Indonesia dari **NewsData.io**, membersihkan data, memberi label sentimen dengan **Gemini free tier**, lalu menyimpannya ke **Neon Postgres** dengan fallback ke CSV.
 
 ## Fitur
 
@@ -8,7 +8,8 @@
 - Pagination lewat `nextPage`
 - Clean data dengan `pandas`
 - Analisis sentimen dengan Gemini `gemini-3.5-flash`
-- Simpan hasil ke CSV dengan deduplication berdasarkan `article_id`
+- Simpan hasil ke Neon Postgres, fallback ke CSV jika DB tidak tersedia
+- Deduplication berdasarkan `article_id`
 - Mode cepat tanpa sentiment untuk testing
 
 ## Struktur Proyek
@@ -25,6 +26,7 @@ kabar.io/
 │   ├── cleaner.py
 │   └── sentiment.py
 ├── storage/
+│   ├── neon_handler.py
 │   └── csv_handler.py
 ├── pipeline.py
 └── requirements.txt
@@ -63,6 +65,7 @@ Pakai `.env` di root project untuk secret:
 ```env
 NEWSDATA_API_KEY=your_key_here
 GEMINI_API_KEYS=key1,key2,key3
+DATABASE_URL=postgresql://user:password@ep-xxxx-pooler.us-east-2.aws.neon.tech/dbname?sslmode=require&channel_binding=require
 ```
 
 Setting non-secret ada di `config/settings.yml`.
@@ -71,6 +74,7 @@ Catatan:
 
 - `NEWSDATA_API_KEY` wajib untuk fetch berita
 - `GEMINI_API_KEYS` dipakai untuk sentiment analysis
+- `DATABASE_URL` dipakai untuk Neon Postgres, sebaiknya pakai pooled connection string dari Neon Console
 - Tidak ada hardcoded key di source code
 
 ## Config YAML
@@ -147,7 +151,7 @@ Alur:
 1. `NewsDataClient.fetch_all_categories()`
 2. `clean_articles()`
 3. `analyze_sentiment()`
-4. `save_to_csv(df, OUTPUT_CSV)`
+4. `save_with_fallback(df, OUTPUT_CSV)`
 
 ### Mode cepat
 
@@ -157,9 +161,27 @@ Kalau ingin skip sentiment untuk testing:
 python pipeline.py --skip-sentiment
 ```
 
+## Database
+
+Primary storage project ini adalah Neon Postgres.
+
+Format `DATABASE_URL` yang disarankan:
+
+```env
+DATABASE_URL=postgresql://[user]:[password]@[neon_hostname]/[dbname]?sslmode=require&channel_binding=require
+```
+
+Kalau kamu mengaktifkan connection pooling di Neon Console, hostname biasanya memakai suffix `-pooler`, misalnya:
+
+```env
+DATABASE_URL=postgresql://[user]:[password]@ep-cool-darkness-123456-pooler.us-east-2.aws.neon.tech/[dbname]?sslmode=require&channel_binding=require
+```
+
+CSV tetap tersedia sebagai fallback jika `DATABASE_URL` belum diisi atau koneksi database gagal.
+
 ## Output
 
-Hasil pipeline disimpan ke:
+Kalau fallback CSV dipakai, hasil pipeline disimpan ke:
 
 ```text
 data/news.csv
@@ -188,10 +210,10 @@ Kolom utama yang dipakai:
 - `fetch_latest()` akan retry sekali kalau kena `ConnectionError`
 - Kalau API mengembalikan `429`, artikel pada kategori itu akan dilewati
 - Sentiment diproses per batch 10 baris dengan jeda 1 detik antar batch
-- CSV akan dideduplicate berdasarkan `article_id`
+- Neon dan CSV sama-sama dedupe berdasarkan `article_id`
 - Gemini API free tier dipakai lewat `gemini-3.5-flash`
 - Kalau ada beberapa key di `GEMINI_API_KEYS`, sistem akan mencoba key berikutnya saat key sebelumnya kena limit atau error jaringan
-- `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan output CSV
+- `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan fallback CSV
 
 ## Lisensi
 
