@@ -23,12 +23,15 @@ def main() -> None:
     args = parser.parse_args()
 
     client = NewsDataClient()
+    print("Fetching latest articles...", flush=True)
     raw_articles = client.fetch_all_categories()
     fetched_count = len(raw_articles)
 
+    print(f"Fetched {fetched_count} rows. Cleaning articles...", flush=True)
     cleaned_df = clean_articles(raw_articles)
 
     if args.skip_sentiment:
+        print("Skipping sentiment analysis by request.", flush=True)
         final_df = cleaned_df.copy()
         if "sentiment" not in final_df.columns:
             final_df["sentiment"] = "unknown"
@@ -37,8 +40,10 @@ def main() -> None:
         if "sentiment_reason" not in final_df.columns:
             final_df["sentiment_reason"] = ""
     else:
+        print("Running sentiment analysis...", flush=True)
         final_df = analyze_sentiment(cleaned_df)
 
+    print("Saving results...", flush=True)
     save_with_fallback(final_df, OUTPUT_CSV)
 
     if "sentiment" in final_df.columns and not final_df.empty:
@@ -49,6 +54,7 @@ def main() -> None:
     print(f"Total fetched: {fetched_count}")
     print(f"Total saved: {len(final_df)}")
     print(f"Sentiment distribution: {sentiment_distribution}")
+    print("Pipeline finished.", flush=True)
 
 
 def run() -> None:

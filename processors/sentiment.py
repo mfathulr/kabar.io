@@ -82,8 +82,17 @@ def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     if not api_keys or result.empty:
         return result
 
+    total_batches = (len(result) + BATCH_SIZE - 1) // BATCH_SIZE
+    print(f"Starting sentiment analysis for {len(result)} rows across {total_batches} batches.", flush=True)
+
     for start in range(0, len(result), BATCH_SIZE):
         batch = result.iloc[start : start + BATCH_SIZE]
+        batch_no = start // BATCH_SIZE + 1
+        print(
+            f"Analyzing sentiment batch {batch_no}/{total_batches} "
+            f"({start + 1}-{min(start + BATCH_SIZE, len(result))}/{len(result)})",
+            flush=True,
+        )
 
         for idx, row in batch.iterrows():
             user_prompt = f"Judul: {row.get('title', '')}\nDeskripsi: {row.get('description', '')}"
@@ -114,6 +123,7 @@ def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
                         timeout=60,
                     )
                     if response.status_code == 429:
+                        print(f"Gemini rate limit hit for row {idx}. Trying next key.", flush=True)
                         continue
 
                     response.raise_for_status()
@@ -152,6 +162,7 @@ def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
         if start + BATCH_SIZE < len(result):
             time.sleep(1)
 
+    print("Sentiment analysis finished.", flush=True)
     return result
 
 
