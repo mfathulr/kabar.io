@@ -28,6 +28,8 @@ kabar.io/
 ├── storage/
 │   ├── neon_handler.py
 │   └── csv_handler.py
+├── migrations/
+│   └── 001_news_articles.sql
 ├── pipeline.py
 └── requirements.txt
 ```
@@ -178,6 +180,16 @@ DATABASE_URL=postgresql://[user]:[password]@ep-cool-darkness-123456-pooler.us-ea
 ```
 
 CSV tetap tersedia sebagai fallback jika `DATABASE_URL` belum diisi atau koneksi database gagal.
+
+## Migration Schema
+
+Schema utama Neon disimpan di satu file:
+
+```text
+migrations/001_news_articles.sql
+```
+
+File ini jadi source of truth untuk tabel `news_articles`. Kalau nanti ada fitur baru yang butuh perubahan schema, kamu bisa buat migration nomor berikutnya dulu sebagai file terpisah, lalu gabungkan atau squash kembali ke file utama saat sudah stabil.
 
 ## Output
 

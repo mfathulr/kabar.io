@@ -12,9 +12,26 @@ try:
 except Exception:  # pragma: no cover - optional dependency for Neon usage
     ConnectionPool = None  # type: ignore[assignment]
 
-from storage.csv_handler import EXPECTED_COLUMNS, save_to_csv
+from storage.csv_handler import save_to_csv
 
 TABLE_NAME = "news_articles"
+DB_COLUMNS = [
+    "article_id",
+    "title",
+    "description",
+    "source_id",
+    "source_url",
+    "country",
+    "category",
+    "language",
+    "published_at",
+    "fetched_at",
+    "published_at_wib",
+    "domain",
+    "sentiment",
+    "sentiment_confidence",
+    "sentiment_reason",
+]
 POOL_MIN_SIZE = 1
 POOL_MAX_SIZE = 5
 _POOL: ConnectionPool | None = None
@@ -64,13 +81,29 @@ def _normalize_value(value: Any) -> Any:
 
 def _row_payload(row: pd.Series) -> dict[str, Any]:
     """Map a DataFrame row to the database schema."""
-    payload = {column: _normalize_value(row.get(column)) for column in EXPECTED_COLUMNS}
+    payload = {
+        "article_id": _normalize_value(row.get("article_id")),
+        "title": _normalize_value(row.get("title")),
+        "description": _normalize_value(row.get("description")),
+        "source_id": _normalize_value(row.get("source_id")),
+        "source_url": _normalize_value(row.get("source_url")),
+        "country": _normalize_value(row.get("country")),
+        "category": _normalize_value(row.get("category")),
+        "language": _normalize_value(row.get("language")),
+        "published_at": _normalize_value(row.get("pubDate")),
+        "fetched_at": _normalize_value(row.get("fetched_at")),
+        "published_at_wib": _normalize_value(row.get("pub_date_wib")),
+        "domain": _normalize_value(row.get("domain")),
+        "sentiment": _normalize_value(row.get("sentiment")),
+        "sentiment_confidence": _normalize_value(row.get("sentiment_confidence")),
+        "sentiment_reason": _normalize_value(row.get("sentiment_reason")),
+    }
     return payload
 
 
 def _ensure_table(conn) -> None:
     """Create the target table if it does not exist."""
-    conn.execute(
+    statements = [
         f"""
         CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
             article_id TEXT PRIMARY KEY,
@@ -78,19 +111,54 @@ def _ensure_table(conn) -> None:
             description TEXT,
             source_id TEXT,
             source_url TEXT,
-            country TEXT,
-            category TEXT,
+            country TEXT NOT NULL DEFAULT 'id',
+            category TEXT NOT NULL,
             language TEXT,
-            pubDate TIMESTAMPTZ,
-            fetched_at TIMESTAMPTZ,
-            pub_date_wib TIMESTAMPTZ,
+            published_at TIMESTAMPTZ,
+            fetched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            published_at_wib TIMESTAMPTZ,
             domain TEXT,
-            sentiment TEXT,
-            sentiment_confidence DOUBLE PRECISION,
-            sentiment_reason TEXT
+            sentiment TEXT NOT NULL DEFAULT 'unknown',
+            sentiment_confidence DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (sentiment_confidence >= 0 AND sentiment_confidence <= 1),
+            sentiment_reason TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+        """,
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_news_articles_category_published_at
+            ON {TABLE_NAME} (category, published_at DESC)
+        """,
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_news_articles_fetched_at
+            ON {TABLE_NAME} (fetched_at DESC)
+        """,
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_news_articles_source_id
+            ON {TABLE_NAME} (source_id)
+        """,
         """
-    )
+        CREATE OR REPLACE FUNCTION set_news_articles_updated_at()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = NOW();
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+        """,
+        f"""
+        DROP TRIGGER IF EXISTS trg_news_articles_updated_at ON {TABLE_NAME}
+        """,
+        f"""
+        CREATE TRIGGER trg_news_articles_updated_at
+        BEFORE UPDATE ON {TABLE_NAME}
+        FOR EACH ROW
+        EXECUTE FUNCTION set_news_articles_updated_at()
+        """,
+    ]
+
+    for statement in statements:
+        conn.execute(statement)
 
 
 def save_to_neon(df: pd.DataFrame) -> None:
@@ -108,21 +176,7 @@ def save_to_neon(df: pd.DataFrame) -> None:
             cur.executemany(
                 f"""
                 INSERT INTO {TABLE_NAME} (
-                    article_id,
-                    title,
-                    description,
-                    source_id,
-                    source_url,
-                    country,
-                    category,
-                    language,
-                    pubDate,
-                    fetched_at,
-                    pub_date_wib,
-                    domain,
-                    sentiment,
-                    sentiment_confidence,
-                    sentiment_reason
+                    {", ".join(DB_COLUMNS)}
                 ) VALUES (
                     %(article_id)s,
                     %(title)s,
@@ -132,9 +186,9 @@ def save_to_neon(df: pd.DataFrame) -> None:
                     %(country)s,
                     %(category)s,
                     %(language)s,
-                    %(pubDate)s,
+                    %(published_at)s,
                     %(fetched_at)s,
-                    %(pub_date_wib)s,
+                    %(published_at_wib)s,
                     %(domain)s,
                     %(sentiment)s,
                     %(sentiment_confidence)s,
@@ -148,13 +202,14 @@ def save_to_neon(df: pd.DataFrame) -> None:
                     country = EXCLUDED.country,
                     category = EXCLUDED.category,
                     language = EXCLUDED.language,
-                    pubDate = EXCLUDED.pubDate,
+                    published_at = EXCLUDED.published_at,
                     fetched_at = EXCLUDED.fetched_at,
-                    pub_date_wib = EXCLUDED.pub_date_wib,
+                    published_at_wib = EXCLUDED.published_at_wib,
                     domain = EXCLUDED.domain,
                     sentiment = EXCLUDED.sentiment,
                     sentiment_confidence = EXCLUDED.sentiment_confidence,
-                    sentiment_reason = EXCLUDED.sentiment_reason
+                    sentiment_reason = EXCLUDED.sentiment_reason,
+                    updated_at = NOW()
                 """,
                 rows,
             )
