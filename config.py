@@ -14,6 +14,6 @@ LANGUAGE = "id,en"
 PAGE_SIZE = 10
 
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+GEMINI_API_KEYS = os.getenv("GEMINI_API_KEYS", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 OUTPUT_CSV = os.getenv("OUTPUT_CSV", "data/news.csv")

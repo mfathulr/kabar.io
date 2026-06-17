@@ -17,7 +17,7 @@ def main() -> None:
     parser.add_argument(
         "--skip-sentiment",
         action="store_true",
-        help="Skip OpenAI sentiment analysis for faster testing",
+        help="Skip Gemini sentiment analysis for faster testing",
     )
     args = parser.parse_args()
 

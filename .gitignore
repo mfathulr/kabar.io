@@ -18,7 +18,8 @@ env/
 .DS_Store
 .idea/
 .vscode/
+.agents/
+.codex/
 
 # Generated data
 data/
-

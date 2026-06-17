@@ -1,4 +1,4 @@
-"""Sentiment analysis helpers using OpenAI."""
+"""Sentiment analysis helpers using Gemini."""
 
 from __future__ import annotations
 
@@ -8,16 +8,22 @@ import time
 from typing import Any
 
 import pandas as pd
-from openai import OpenAI
+import requests
+
+from config import GEMINI_API_KEYS, GEMINI_MODEL
 
 
 SYSTEM_PROMPT = (
     "Kamu adalah analis media Indonesia. Klasifikasikan sentimen "
     "berita berikut. Jawab HANYA dengan JSON format: "
-    '{sentiment: positif|negatif|netral, confidence: 0.0-1.0, reason: string max 10 kata}'
+    "{sentiment: positif|negatif|netral, confidence: 0.0-1.0, reason: string max 10 kata}"
 )
-MODEL = "gpt-4o-mini"
+MODEL = GEMINI_MODEL
+GEMINI_ENDPOINT = (
+    f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
+)
 BATCH_SIZE = 10
+GEMINI_KEYS_ENV = "GEMINI_API_KEYS"
 
 
 def _safe_parse_json(content: str) -> dict[str, Any]:
@@ -36,72 +42,109 @@ def _safe_parse_json(content: str) -> dict[str, Any]:
 
 
 def _extract_message_content(response: Any) -> str:
-    """Extract text content from OpenAI chat response objects."""
+    """Extract text content from Gemini response objects."""
     try:
-        choice = response.choices[0]
-        message = choice.message
-        content = getattr(message, "content", "")
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            parts: list[str] = []
-            for item in content:
-                text = getattr(item, "text", None)
-                if text:
-                    parts.append(text)
-            return "".join(parts)
+        candidates = response.get("candidates", [])
+        if not candidates:
+            return ""
+        content = candidates[0].get("content", {})
+        parts = content.get("parts", [])
+        texts: list[str] = []
+        for part in parts:
+            text = part.get("text")
+            if text:
+                texts.append(str(text))
+        return "".join(texts)
     except Exception:
         pass
     return ""
 
 
+def _load_gemini_keys() -> list[str]:
+    """Load one or more Gemini API keys from env/config."""
+    raw_keys = os.getenv(GEMINI_KEYS_ENV, GEMINI_API_KEYS)
+    keys: list[str] = []
+
+    if raw_keys:
+        keys.extend([key.strip() for key in raw_keys.split(",") if key.strip()])
+
+    return keys
+
+
 def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
-    """Add sentiment columns to a DataFrame using the OpenAI API."""
+    """Add sentiment columns to a DataFrame using the Gemini API."""
     result = df.copy()
     result["sentiment"] = "unknown"
     result["sentiment_confidence"] = 0.0
     result["sentiment_reason"] = ""
 
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key or result.empty:
+    api_keys = _load_gemini_keys()
+    if not api_keys or result.empty:
         return result
-
-    client = OpenAI(api_key=api_key)
 
     for start in range(0, len(result), BATCH_SIZE):
         batch = result.iloc[start : start + BATCH_SIZE]
 
         for idx, row in batch.iterrows():
             user_prompt = f"Judul: {row.get('title', '')}\nDeskripsi: {row.get('description', '')}"
-            try:
-                response = client.chat.completions.create(
-                    model=MODEL,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0,
-                )
-                content = _extract_message_content(response)
-                parsed = _safe_parse_json(content)
+            row_done = False
+            payload = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [
+                            {
+                                "text": f"{SYSTEM_PROMPT}\n\n{user_prompt}",
+                            }
+                        ],
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0,
+                    "responseMimeType": "application/json",
+                },
+            }
 
-                sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
-                if sentiment not in {"positif", "negatif", "netral"}:
-                    sentiment = "unknown"
-
-                confidence_raw = parsed.get("confidence", 0.0)
+            for api_key in api_keys:
                 try:
-                    confidence = float(confidence_raw)
-                except (TypeError, ValueError):
-                    confidence = 0.0
-                confidence = max(0.0, min(1.0, confidence))
+                    response = requests.post(
+                        GEMINI_ENDPOINT,
+                        params={"key": api_key},
+                        json=payload,
+                        timeout=60,
+                    )
+                    if response.status_code == 429:
+                        continue
 
-                reason = str(parsed.get("reason", "")).strip()
-                reason = " ".join(reason.split()[:10])
-                result.at[idx, "sentiment"] = sentiment
-                result.at[idx, "sentiment_confidence"] = confidence
-                result.at[idx, "sentiment_reason"] = reason
-            except Exception:
+                    response.raise_for_status()
+                    content = _extract_message_content(response.json())
+                    parsed = _safe_parse_json(content)
+
+                    sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
+                    if sentiment not in {"positif", "negatif", "netral"}:
+                        sentiment = "unknown"
+
+                    confidence_raw = parsed.get("confidence", 0.0)
+                    try:
+                        confidence = float(confidence_raw)
+                    except (TypeError, ValueError):
+                        confidence = 0.0
+                    confidence = max(0.0, min(1.0, confidence))
+
+                    reason = str(parsed.get("reason", "")).strip()
+                    reason = " ".join(reason.split()[:10])
+                    result.at[idx, "sentiment"] = sentiment
+                    result.at[idx, "sentiment_confidence"] = confidence
+                    result.at[idx, "sentiment_reason"] = reason
+                    row_done = True
+                    break
+                except requests.exceptions.ConnectionError:
+                    time.sleep(1)
+                    continue
+                except Exception:
+                    continue
+
+            if not row_done:
                 result.at[idx, "sentiment"] = "unknown"
                 result.at[idx, "sentiment_confidence"] = 0.0
                 result.at[idx, "sentiment_reason"] = ""
