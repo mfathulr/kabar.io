@@ -8,9 +8,11 @@ from typing import Any
 import pandas as pd
 
 try:
-    from psycopg_pool import ConnectionPool
+    from psycopg_pool import ConnectionPool as _ConnectionPool
+    HAS_CONNECTION_POOL = True
 except Exception:  # pragma: no cover - optional dependency for Neon usage
-    ConnectionPool = None  # type: ignore[assignment]
+    _ConnectionPool = Any  # type: ignore[assignment]
+    HAS_CONNECTION_POOL = False
 
 from storage.csv_handler import save_to_csv
 
@@ -34,7 +36,7 @@ DB_COLUMNS = [
 ]
 POOL_MIN_SIZE = 1
 POOL_MAX_SIZE = 5
-_POOL: ConnectionPool | None = None
+_POOL: Any = None
 
 
 def _get_database_url() -> str:
@@ -42,21 +44,21 @@ def _get_database_url() -> str:
     return os.getenv("DATABASE_URL", "").strip()
 
 
-def _get_pool() -> ConnectionPool:
+def _get_pool() -> Any:
     """Create a pooled Postgres client on demand."""
     global _POOL
 
     if _POOL is not None:
         return _POOL
 
-    if ConnectionPool is None:
+    if not HAS_CONNECTION_POOL:
         raise RuntimeError("psycopg-pool is not installed")
 
     database_url = _get_database_url()
     if not database_url:
         raise ValueError("DATABASE_URL is not configured")
 
-    _POOL = ConnectionPool(
+    _POOL = _ConnectionPool(
         conninfo=database_url,
         min_size=POOL_MIN_SIZE,
         max_size=POOL_MAX_SIZE,
