@@ -1,0 +1,59 @@
+"""Main orchestration for the media_pulse pipeline."""
+
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+
+from collectors.newsdata_client import NewsDataClient
+from processors.cleaner import clean_articles
+from processors.sentiment import analyze_sentiment
+from storage.csv_handler import save_to_csv
+
+
+def main() -> None:
+    """Run the media_pulse ingestion pipeline."""
+    parser = argparse.ArgumentParser(description="Run the media_pulse pipeline")
+    parser.add_argument(
+        "--skip-sentiment",
+        action="store_true",
+        help="Skip OpenAI sentiment analysis for faster testing",
+    )
+    args = parser.parse_args()
+
+    client = NewsDataClient()
+    raw_articles = client.fetch_all_categories()
+    fetched_count = len(raw_articles)
+
+    cleaned_df = clean_articles(raw_articles)
+
+    if args.skip_sentiment:
+        final_df = cleaned_df.copy()
+        if "sentiment" not in final_df.columns:
+            final_df["sentiment"] = "unknown"
+        if "sentiment_confidence" not in final_df.columns:
+            final_df["sentiment_confidence"] = 0.0
+        if "sentiment_reason" not in final_df.columns:
+            final_df["sentiment_reason"] = ""
+    else:
+        final_df = analyze_sentiment(cleaned_df)
+
+    save_to_csv(final_df, "data/news_raw.csv")
+
+    if "sentiment" in final_df.columns and not final_df.empty:
+        sentiment_distribution = dict(Counter(final_df["sentiment"].fillna("unknown")))
+    else:
+        sentiment_distribution = {}
+
+    print(f"Total fetched: {fetched_count}")
+    print(f"Total saved: {len(final_df)}")
+    print(f"Sentiment distribution: {sentiment_distribution}")
+
+
+def run() -> None:
+    """Backward-compatible alias for older callers."""
+    main()
+
+
+if __name__ == "__main__":
+    main()
