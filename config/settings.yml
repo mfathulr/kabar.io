@@ -4,6 +4,7 @@
 # - business
 # - technology
 # - health
+# Temporary lightweight mode: only one category enabled first.
 newsdata:
   base_url: https://newsdata.io/api/1
   country: id
@@ -11,9 +12,6 @@ newsdata:
   page_size: 10
   categories:
     - politics
-    - business
-    - technology
-    - health
 
 gemini:
   model: gemini-2.5-flash
