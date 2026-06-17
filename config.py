@@ -9,10 +9,11 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
-load_dotenv()
-
 ROOT_DIR = Path(__file__).resolve().parent
 SETTINGS_PATH = ROOT_DIR / "config" / "settings.yml"
+ENV_PATH = ROOT_DIR / ".env"
+
+load_dotenv(dotenv_path=ENV_PATH)
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "newsdata": {

@@ -191,6 +191,42 @@ migrations/001_news_articles.sql
 
 File ini jadi source of truth untuk tabel `news_articles`. Kalau nanti ada fitur baru yang butuh perubahan schema, kamu bisa buat migration nomor berikutnya dulu sebagai file terpisah, lalu gabungkan atau squash kembali ke file utama saat sudah stabil.
 
+## Cron Setup
+
+Untuk sekarang, strategi yang paling masuk akal adalah **1x sehari** karena pipeline ini batch-oriented dan free tier NewsData.io punya delay data.
+
+Rekomendasi:
+
+```cron
+0 6 * * * /home/devuser/projects/kabar.io/scripts/run_pipeline.sh
+```
+
+Kenapa jam 06:00 WIB:
+
+- data hari sebelumnya sudah lebih matang
+- tidak terlalu sering membuang credit
+- cocok untuk pipeline yang dedupe by `article_id`
+
+Script yang dijalankan cron:
+
+```text
+scripts/run_pipeline.sh
+```
+
+Script ini:
+
+- pindah ke root repo
+- memastikan folder `logs/` ada
+- menulis output ke `logs/pipeline.log`
+
+Kalau kamu mau frekuensi lebih tinggi nanti, kita bisa naik ke 2x sehari, tapi untuk start saya sarankan tetap 1x dulu supaya sederhana dan hemat credit.
+
+Contoh cleanup log mingguan:
+
+```cron
+0 0 * * 1 find /home/devuser/projects/kabar.io/logs -name "*.log" -mtime +7 -delete
+```
+
 ## Output
 
 Kalau fallback CSV dipakai, hasil pipeline disimpan ke:
