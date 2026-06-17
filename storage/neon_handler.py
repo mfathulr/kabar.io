@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
 import pandas as pd
+from pandas.api.types import is_scalar
 
 try:
     from psycopg_pool import ConnectionPool as _ConnectionPool
@@ -69,8 +71,27 @@ def _get_pool() -> Any:
 
 def _normalize_value(value: Any) -> Any:
     """Convert pandas values to psycopg-friendly Python values."""
-    if pd.isna(value):
+    if value is None:
         return None
+
+    if not is_scalar(value):
+        if isinstance(value, (list, tuple, set)):
+            return json.dumps(list(value), ensure_ascii=False)
+        if isinstance(value, dict):
+            return json.dumps(value, ensure_ascii=False)
+        if hasattr(value, "tolist"):
+            try:
+                return json.dumps(value.tolist(), ensure_ascii=False)
+            except Exception:
+                return str(value)
+        return str(value)
+
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
     if isinstance(value, pd.Timestamp):
         return value.to_pydatetime()
     if hasattr(value, "to_pydatetime"):
