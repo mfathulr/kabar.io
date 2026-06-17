@@ -110,6 +110,30 @@ output:
 Kalau mau pakai kategori tertentu saja, cukup hapus item yang tidak dibutuhkan dari `categories`.
 Kalau kamu mau cek daftar kategori resmi NewsData.io yang lebih lengkap, rujuk dokumentasi resminya karena project ini hanya mengaktifkan 4 kategori di config default.
 
+## Referensi Kategori NewsData
+
+Berikut daftar kategori yang bisa kamu pakai sebagai referensi saat mengatur `config/settings.yml`:
+
+| Category | Parameter API | Contoh konten Indonesia |
+| --- | --- | --- |
+| Business | `business` | Saham IHSG, BUMN, investasi, startup |
+| Crime | `crime` | Korupsi KPK, kriminalitas, fraud |
+| Domestic | `domestic` | Isu dalam negeri, kebijakan lokal |
+| Education | `education` | Kurikulum Merdeka, SNBT, beasiswa |
+| Entertainment | `entertainment` | Selebriti, film, musik Indonesia |
+| Environment | `environment` | Bencana alam, deforestasi, kebakaran hutan |
+| Food | `food` | Kuliner, pangan, harga bahan pokok |
+| Health | `health` | BPJS, wabah, kebijakan Kemenkes |
+| Lifestyle | `lifestyle` | Gaya hidup, tren sosial |
+| Politics | `politics` | Pilkada, DPR, kebijakan pemerintah |
+| Science | `science` | Riset, inovasi, teknologi nuklir |
+| Sports | `sports` | Timnas, Liga 1, SEA Games |
+| Technology | `technology` | Fintech, AI, regulasi data |
+| Top | `top` | Breaking news terpopuler |
+| Tourism | `tourism` | Pariwisata, destinasi, MICE |
+| World | `world` | Berita global yang menyentuh Indonesia |
+| Other | `other` | Tidak terkategori |
+
 ## Cara Jalan
 
 ### Full pipeline
@@ -123,7 +147,7 @@ Alur:
 1. `NewsDataClient.fetch_all_categories()`
 2. `clean_articles()`
 3. `analyze_sentiment()`
-4. `save_to_csv(df, "data/news_raw.csv")`
+4. `save_to_csv(df, OUTPUT_CSV)`
 
 ### Mode cepat
 
