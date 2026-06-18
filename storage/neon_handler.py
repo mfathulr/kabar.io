@@ -245,9 +245,13 @@ def save_with_fallback(df: pd.DataFrame, fallback_csv_path: str) -> None:
     database_url = _get_database_url()
     if database_url:
         try:
+            print(f"Saving {len(df)} rows to Neon table '{TABLE_NAME}'...", flush=True)
             save_to_neon(df)
+            print("Neon save finished.", flush=True)
             return
         except Exception as exc:
             print(f"Neon save failed, falling back to CSV: {exc}")
 
+    print(f"Saving {len(df)} rows to CSV fallback at '{fallback_csv_path}'...", flush=True)
     save_to_csv(df, fallback_csv_path)
+    print("CSV fallback save finished.", flush=True)
