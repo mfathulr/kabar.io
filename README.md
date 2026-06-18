@@ -101,8 +101,8 @@ Contoh isi:
 newsdata:
   base_url: https://newsdata.io/api/1
   country: id
-  language: id,en
-  page_size: 15
+  language: id
+  page_size: 10
   active_category_set: balanced
   category_sets:
     balanced:
@@ -175,15 +175,22 @@ Guard yang dipakai pipeline:
 
 Artinya pipeline akan berhenti lebih awal supaya ada sisa sekitar 30 credit sebagai buffer harian, jadi tidak habis mentok di limit.
 
-Dengan `page_size: 15`, estimasi untuk preset `balanced` sekarang jadi:
+Dengan `page_size: 10`, estimasi untuk preset `balanced` sekarang jadi:
 
-- `5 kategori x 4 page x 15 artikel = 300 artikel` per run maksimal
-- konsumsi kredit sekitar `5 kategori x 4 page x 2 credit = 40 credit`
+- `5 kategori x 4 page x 10 artikel = 200 artikel` per run maksimal
+- konsumsi kredit sekitar `5 kategori x 4 page x 1 credit = 20 credit`
 - sisa buffer harian tetap besar di bawah limit `200/day`
+
+Catatan:
+
+- Audience project ini memang Indonesia-only, jadi `language` dipaku ke `id`.
+- Runtime juga akan menahan `page_size` di maksimal `10` supaya tetap kompatibel dengan free tier.
 
 ## Referensi Kategori NewsData
 
-Berikut daftar kategori yang bisa kamu pakai sebagai referensi saat mengatur `config/settings.yml`:
+Berikut daftar kategori NewsData yang dipakai sebagai referensi saat mengatur `config/settings.yml`.
+Daftar ini sudah cocok dengan kategori yang ada di project saat ini.
+`breaking` bukan category filter di config ini, jadi tidak dipakai sebagai nilai `newsdata.categories`.
 
 | Category | Parameter API | Contoh konten Indonesia |
 | --- | --- | --- |

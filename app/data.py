@@ -7,14 +7,17 @@ from pathlib import Path
 from typing import Literal
 
 import pandas as pd
+from dotenv import load_dotenv
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = ROOT_DIR / ".env"
+load_dotenv(dotenv_path=ENV_PATH)
 
 try:
     import psycopg
 except Exception:  # pragma: no cover - optional at runtime
     psycopg = None  # type: ignore[assignment]
-
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT_DIR / "data" / "news.csv"
 
 Nav = Literal["overview", "sentiment", "category", "source", "news"]

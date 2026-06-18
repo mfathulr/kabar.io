@@ -17,13 +17,17 @@
 # - tourism
 # - world
 # - other
+# Catatan: `breaking` bukan category filter di config ini; kalau perlu, pakai sebagai label konten,
+# bukan sebagai nilai `newsdata.categories`.
 # Use `newsdata.active_category_set` to switch the active mix.
 # `newsdata.categories` stays as a legacy override if you want to set the list manually.
+# Audience target is Indonesia-only, so `language` is pinned to `id`.
+# `page_size` should stay at or below 10 for the free tier.
 newsdata:
   base_url: https://newsdata.io/api/1
   country: id
-  language: id,en
-  page_size: 15
+  language: id
+  page_size: 10
   active_category_set: balanced
   category_sets:
     balanced:

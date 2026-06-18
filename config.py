@@ -19,7 +19,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "newsdata": {
         "base_url": "https://newsdata.io/api/1",
         "country": "id",
-        "language": "id,en",
+        "language": "id",
         "page_size": 10,
         "active_category_set": "balanced",
         "category_sets": {
@@ -77,8 +77,11 @@ OUTPUT_SETTINGS = SETTINGS.get("output", {})
 
 BASE_URL = str(NEWSDATA_SETTINGS.get("base_url", DEFAULT_SETTINGS["newsdata"]["base_url"]))
 COUNTRY = str(NEWSDATA_SETTINGS.get("country", DEFAULT_SETTINGS["newsdata"]["country"]))
-LANGUAGE = str(NEWSDATA_SETTINGS.get("language", DEFAULT_SETTINGS["newsdata"]["language"]))
-PAGE_SIZE = int(NEWSDATA_SETTINGS.get("page_size", DEFAULT_SETTINGS["newsdata"]["page_size"]))
+LANGUAGE = "id"
+RAW_PAGE_SIZE = int(NEWSDATA_SETTINGS.get("page_size", DEFAULT_SETTINGS["newsdata"]["page_size"]))
+PAGE_SIZE = max(1, min(RAW_PAGE_SIZE, 10))
+if RAW_PAGE_SIZE != PAGE_SIZE:
+    print(f"Clamped NewsData page_size from {RAW_PAGE_SIZE} to {PAGE_SIZE} for free-tier compatibility.", flush=True)
 ACTIVE_CATEGORY_SET = str(
     NEWSDATA_SETTINGS.get("active_category_set", DEFAULT_SETTINGS["newsdata"]["active_category_set"])
 )
