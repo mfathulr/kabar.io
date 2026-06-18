@@ -93,21 +93,53 @@ config/settings.yml
 Contoh isi:
 
 ```yaml
-# Categories enabled by default in this project:
-# - politics
-# - business
-# - technology
-# - health
+# Available category sets:
+# - balanced
+# - broader
+# - local
+# - economy
 newsdata:
   base_url: https://newsdata.io/api/1
   country: id
   language: id,en
   page_size: 10
+  active_category_set: balanced
+  category_sets:
+    balanced:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+    broader:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+      - entertainment
+      - sports
+    local:
+      - domestic
+      - politics
+      - education
+      - crime
+      - health
+    economy:
+      - business
+      - technology
+      - politics
+      - domestic
+      - world
   categories:
     - politics
     - business
     - technology
     - health
+    - world
+  credit_budget_per_day: 200
+  credit_buffer: 20
+  max_pages_per_category: 5
 
 gemini:
   model: gemini-2.5-flash
@@ -116,8 +148,32 @@ output:
   csv: data/news.csv
 ```
 
-Kalau mau pakai kategori tertentu saja, cukup hapus item yang tidak dibutuhkan dari `categories`.
-Kalau kamu mau cek daftar kategori resmi NewsData.io yang lebih lengkap, rujuk dokumentasi resminya karena project ini hanya mengaktifkan 4 kategori di config default.
+Kalau mau pakai kategori tertentu saja, cukup ganti `active_category_set` atau edit `categories` secara manual.
+Kalau kamu mau cek daftar kategori resmi NewsData.io yang lebih lengkap, rujuk dokumentasi resminya karena project ini sekarang memakai preset yang bisa diubah dari config.
+
+### Strategi Kombinasi Kategori
+
+Default yang saya sarankan untuk free tier adalah `balanced`:
+
+- `politics`
+- `business`
+- `technology`
+- `health`
+- `world`
+
+Kenapa ini aman:
+
+- cukup beragam untuk feed harian
+- masih relevan untuk berita Indonesia
+- mudah dikembangkan ke `broader` kalau kredit masih longgar
+
+Guard yang dipakai pipeline:
+
+- `credit_budget_per_day: 200`
+- `credit_buffer: 20`
+- `max_pages_per_category: 5`
+
+Artinya pipeline akan berhenti lebih awal supaya ada sisa sekitar 20 credit sebagai buffer harian, jadi tidak habis mentok di limit.
 
 ## Referensi Kategori NewsData
 
@@ -156,6 +212,8 @@ Alur:
 1. `NewsDataClient.fetch_all_categories()`
 2. `clean_articles()`
 3. `save_with_fallback(df, OUTPUT_CSV)`
+
+Fetch dilakukan round-robin per kategori, bukan habiskan satu kategori sampai selesai dulu. Jadi hasilnya lebih campur dan lebih enak buat feed.
 
 ### Sentiment Worker
 

@@ -1,17 +1,66 @@
 # Central config for non-secret runtime constants.
 # Available NewsData categories:
-# - politics
 # - business
-# - technology
+# - crime
+# - domestic
+# - education
+# - entertainment
+# - environment
+# - food
 # - health
-# Temporary lightweight mode: only one category enabled first.
+# - lifestyle
+# - politics
+# - science
+# - sports
+# - technology
+# - top
+# - tourism
+# - world
+# - other
+# Use `newsdata.active_category_set` to switch the active mix.
+# `newsdata.categories` stays as a legacy override if you want to set the list manually.
 newsdata:
   base_url: https://newsdata.io/api/1
   country: id
   language: id,en
   page_size: 10
+  active_category_set: balanced
+  category_sets:
+    balanced:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+    broader:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+      - entertainment
+      - sports
+    local:
+      - domestic
+      - politics
+      - education
+      - crime
+      - health
+    economy:
+      - business
+      - technology
+      - politics
+      - domestic
+      - world
   categories:
     - politics
+    - business
+    - technology
+    - health
+    - world
+  credit_budget_per_day: 200
+  credit_buffer: 20
+  max_pages_per_category: 5
 
 gemini:
   model: gemini-2.5-flash
