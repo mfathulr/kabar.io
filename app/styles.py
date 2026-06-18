@@ -97,8 +97,17 @@ BASE_CSS = """
   .panel {
     background: #ffffff; border: 1px solid #e8e0d4; border-radius: 8px; padding: 20px 24px;
     box-shadow: 0 1px 4px rgba(44, 28, 12, 0.06);
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;
   }
   .panel.compact { padding: 16px 18px; }
+  .panel:hover {
+    transform: translateY(-2px);
+    border-color: #dbcdbc;
+    box-shadow: 0 8px 22px rgba(44, 28, 12, 0.10);
+  }
+  .panel.compact:hover {
+    transform: translateY(-1px);
+  }
   .card-title { font-size: 13px; font-weight: 600; color: #2d2a25; margin: 0 0 14px; letter-spacing: -0.2px; }
   .card-subtitle { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.45; }
   .kpi-label {
@@ -149,6 +158,15 @@ BASE_CSS = """
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
     will-change: transform;
+    transition: filter 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease;
+    cursor: default;
+  }
+  .word-cloud-chip:hover {
+    animation-play-state: paused;
+    border-color: rgba(204,34,0,0.20);
+    box-shadow: 0 8px 18px rgba(44,28,12,0.12);
+    background: rgba(255,255,255,0.92);
+    filter: saturate(1.05);
   }
   @keyframes word-cloud-float {
     0%, 100% { transform: translateY(0) rotate(-1.5deg); }
@@ -157,6 +175,9 @@ BASE_CSS = """
   .table-wrap { overflow-x: auto; }
   table.news-table { width: 100%; border-collapse: collapse; min-width: 580px; }
   .news-table thead tr { border-bottom: 2px solid #e8e0d4; }
+  .news-table tbody tr { transition: background-color 120ms ease, transform 120ms ease; }
+  .news-table tbody tr:hover { background: rgba(245, 242, 236, 0.8); }
+  .news-table tbody tr:hover td { color: #2d2a25; }
   .news-table th {
     padding: 8px 12px; text-align: left; font-size: 10px; font-weight: 700; color: #786f62;
     text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap;
@@ -196,6 +217,26 @@ BASE_CSS = """
   .chip {
     display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 10px;
     background: #e8e0d4; color: var(--text-muted); font-size: 12px; font-weight: 500;
+    transition: transform 120ms ease, background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+    cursor: default;
+  }
+  .chip:hover {
+    transform: translateY(-1px);
+    background: #ddd3c4;
+    color: #514a41;
+    box-shadow: 0 4px 12px rgba(44, 28, 12, 0.08);
+  }
+  .live-badge, .export-btn {
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .live-badge:hover, .export-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(44, 28, 12, 0.08);
+  }
+  .export-btn:hover {
+    background: #faf7f2;
+    border-color: #d8cdc1;
+    color: #5f564d;
   }
   .stRadio > div { gap: 4px; }
   .stRadio label { font-size: 13px; }

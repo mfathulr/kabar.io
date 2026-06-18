@@ -291,7 +291,7 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
         category = category_label(article.get("category", ""), lang)
         sent = str(article.get("sentiment", "unknown")).lower()
         rows.append(
-            "<tr>"
+            "<tr class='news-row'>"
             f'<td style="max-width:300px;color:#2d2a25;line-height:1.35">{esc(title)}</td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(category)}</td>'
             f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "neutral"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
