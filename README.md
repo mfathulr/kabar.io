@@ -10,7 +10,6 @@
 - Analisis sentimen dengan Gemini `gemini-2.5-flash`
 - Simpan hasil ke Neon Postgres, fallback ke CSV jika DB tidak tersedia
 - Deduplication berdasarkan `article_id`
-- Mode cepat tanpa sentiment untuk testing
 
 ## Struktur Proyek
 
@@ -30,6 +29,10 @@ kabar.io/
 │   └── csv_handler.py
 ├── migrations/
 │   └── 001_news_articles.sql
+├── scripts/
+│   ├── run_fetch_news.sh
+│   └── run_sentiment_worker.sh
+├── sentiment_worker.py
 ├── pipeline.py
 └── requirements.txt
 ```
@@ -142,25 +145,38 @@ Berikut daftar kategori yang bisa kamu pakai sebagai referensi saat mengatur `co
 
 ## Cara Jalan
 
-### Full pipeline
+### Fetch Harian
 
 ```bash
-python pipeline.py
+./scripts/run_fetch_news.sh
 ```
 
 Alur:
 
 1. `NewsDataClient.fetch_all_categories()`
 2. `clean_articles()`
-3. `analyze_sentiment()`
-4. `save_with_fallback(df, OUTPUT_CSV)`
+3. `save_with_fallback(df, OUTPUT_CSV)`
 
-### Mode cepat
-
-Kalau ingin skip sentiment untuk testing:
+### Sentiment Worker
 
 ```bash
-python pipeline.py --skip-sentiment
+./scripts/run_sentiment_worker.sh
+```
+
+Worker ini:
+
+1. klaim maksimal 5 row `pending`
+2. urutkan berdasarkan `published_at_wib ASC`
+3. klasifikasikan sentiment per artikel
+4. update `sentiment`, `sentiment_confidence`, `sentiment_reason`, `sentiment_status`, `sentiment_processed_at`, dan `sentiment_last_error`
+
+### Manual Debug
+
+Kalau mau jalan langsung tanpa wrapper:
+
+```bash
+.venv/bin/python pipeline.py --skip-sentiment
+.venv/bin/python sentiment_worker.py --batch-size 5
 ```
 
 ## Database
@@ -270,6 +286,13 @@ Kolom utama yang dipakai:
 - `sentiment_confidence`
 - `sentiment_reason`
 
+Di Neon, status sentiment juga tersedia:
+
+- `sentiment_status`
+- `sentiment_attempts`
+- `sentiment_processed_at`
+- `sentiment_last_error`
+
 ## Catatan Perilaku
 
 - `fetch_latest()` akan retry sekali kalau kena `ConnectionError`
@@ -279,6 +302,8 @@ Kolom utama yang dipakai:
 - Gemini API free tier dipakai lewat `gemini-2.5-flash`
 - Kalau ada beberapa key di `GEMINI_API_KEYS`, sistem akan mencoba key berikutnya saat key sebelumnya kena limit atau error jaringan
 - `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan fallback CSV
+- `scripts/run_fetch_news.sh` dipakai untuk cron fetch harian
+- `scripts/run_sentiment_worker.sh` dipakai untuk cron sentiment setiap 10 menit
 
 ## Lisensi
 
