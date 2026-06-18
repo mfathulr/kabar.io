@@ -1,23 +1,59 @@
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import streamlit as st
 import streamlit.components.v1 as components
 
 try:
-    from .data import load_dashboard_data, filter_articles, build_stats
+    from .data import clear_dashboard_snapshot_cache, filter_articles, build_stats, load_dashboard_snapshot
     from .render import page_css, render_page
 except ImportError:  # pragma: no cover - script-style fallback
-    from data import load_dashboard_data, filter_articles, build_stats
+    from data import clear_dashboard_snapshot_cache, filter_articles, build_stats, load_dashboard_snapshot
     from render import page_css, render_page
 
 
-def sidebar_controls(source_name: str, source_note: str) -> tuple[str, str, str, str, str, bool]:
+def format_refresh_label(refresh_at: str | None) -> str:
+    if not refresh_at:
+        return "Belum ada"
+    try:
+        ts = datetime.fromisoformat(refresh_at)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=ZoneInfo("UTC"))
+        local_ts = ts.astimezone(ZoneInfo("Asia/Jakarta"))
+        return local_ts.strftime("%d %b %Y, %H:%M WIB")
+    except ValueError:
+        return refresh_at
+
+
+def refresh_button() -> None:
+    with st.sidebar:
+        if st.button("Refresh data", use_container_width=True):
+            clear_dashboard_snapshot_cache()
+            st.session_state.latest_refresh_at = None
+            st.rerun()
+
+
+def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None) -> tuple[str, str, str, str, str, bool]:
     with st.sidebar:
         st.markdown(
             """
             <div class="sidebar-brand">
               <div class="sidebar-logo">kabar<span class="accent">.io</span></div>
               <div class="sidebar-subtitle">Indonesian News Monitor</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+            <div class="status-box" style="margin-bottom:12px">
+              <div class="status-row"><div class="pulse"></div><span style="font-size:11px;color:#9e9589;font-weight:500">Pipeline active</span></div>
+              <div style="font-size:10px;color:#3d3028">Data: <span style="color:#5c5048">{source_name}</span></div>
+              <div style="font-size:10px;color:#5c5048">Note: {source_note}</div>
+              <div style="font-size:10px;color:#5c5048">Latest refresh: {format_refresh_label(refresh_at)}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -68,16 +104,6 @@ def sidebar_controls(source_name: str, source_note: str) -> tuple[str, str, str,
             format_func=lambda value: value.upper(),
         )
         dark = st.toggle("Dark", value=st.session_state.dark)
-        st.markdown(
-            f"""
-            <div class="status-box">
-              <div class="status-row"><div class="pulse"></div><span style="font-size:11px;color:#9e9589;font-weight:500">Pipeline active</span></div>
-              <div style="font-size:10px;color:#3d3028">Data: <span style="color:#5c5048">{source_name}</span></div>
-              <div style="font-size:10px;color:#5c5048">Note: {source_note}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
     return nav, lang, "all" if sent_f == "all" else sent_f, dr, search, dark
 
@@ -136,8 +162,11 @@ def main() -> None:
 
     st.markdown(page_css(), unsafe_allow_html=True)
 
-    raw_df, source_name, source_note = load_dashboard_data()
-    nav, lang, sent_f, dr, search, dark = sidebar_controls(source_name, source_note)
+    refresh_button()
+    raw_df, source_name, source_note, refresh_at = load_dashboard_snapshot()
+    st.session_state.latest_refresh_at = refresh_at
+
+    nav, lang, sent_f, dr, search, dark = sidebar_controls(source_name, source_note, refresh_at)
     recover_sidebar()
 
     st.session_state.nav = nav

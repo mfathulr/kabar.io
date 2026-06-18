@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timezone
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Literal
 
 import pandas as pd
+import streamlit as st
 from dotenv import load_dotenv
 
 
@@ -19,6 +21,7 @@ try:
 except Exception:  # pragma: no cover - optional at runtime
     psycopg = None  # type: ignore[assignment]
 CSV_PATH = ROOT_DIR / "data" / "news.csv"
+DASHBOARD_CACHE_TTL_SECONDS = 300
 
 Nav = Literal["overview", "sentiment", "category", "source", "news"]
 CANONICAL_COLUMNS = [
@@ -257,6 +260,19 @@ def load_dashboard_data() -> tuple[pd.DataFrame, str, str]:
     if not csv_df.empty:
         return csv_df, "CSV", csv_note
     return pd.DataFrame(columns=CANONICAL_COLUMNS), "Demo", f"{neon_note}; {csv_note}"
+
+
+@st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS, show_spinner=False)
+def load_dashboard_snapshot() -> tuple[pd.DataFrame, str, str, str]:
+    """Load the dashboard data once and cache it briefly for Streamlit reruns."""
+    df, source_name, source_note = load_dashboard_data()
+    refresh_at = datetime.now(timezone.utc).isoformat()
+    return df, source_name, source_note, refresh_at
+
+
+def clear_dashboard_snapshot_cache() -> None:
+    """Clear the cached dashboard snapshot so the next rerun hits Neon again."""
+    load_dashboard_snapshot.clear()
 
 
 def category_label(value: object, lang: str) -> str:
