@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
@@ -171,6 +172,14 @@ def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
             result.at[idx, "sentiment"] = sentiment
             result.at[idx, "sentiment_confidence"] = confidence
             result.at[idx, "sentiment_reason"] = reason
+            if ok:
+                result.at[idx, "sentiment_status"] = "done"
+                result.at[idx, "sentiment_processed_at"] = datetime.now(timezone.utc)
+                result.at[idx, "sentiment_last_error"] = ""
+            else:
+                result.at[idx, "sentiment_status"] = "pending"
+                result.at[idx, "sentiment_processed_at"] = pd.NaT
+                result.at[idx, "sentiment_last_error"] = error
 
         if start + BATCH_SIZE < len(result):
             time.sleep(1)

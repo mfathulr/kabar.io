@@ -249,9 +249,18 @@ def save_to_neon(df: pd.DataFrame) -> None:
                     fetched_at = EXCLUDED.fetched_at,
                     published_at_wib = EXCLUDED.published_at_wib,
                     domain = EXCLUDED.domain,
-                    sentiment = EXCLUDED.sentiment,
-                    sentiment_confidence = EXCLUDED.sentiment_confidence,
-                    sentiment_reason = EXCLUDED.sentiment_reason,
+                    sentiment = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment
+                        ELSE EXCLUDED.sentiment
+                    END,
+                    sentiment_confidence = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_confidence
+                        ELSE EXCLUDED.sentiment_confidence
+                    END,
+                    sentiment_reason = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_reason
+                        ELSE EXCLUDED.sentiment_reason
+                    END,
                     sentiment_status = CASE
                         WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_status
                         ELSE EXCLUDED.sentiment_status
