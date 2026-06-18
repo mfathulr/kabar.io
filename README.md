@@ -193,33 +193,50 @@ File ini jadi source of truth untuk tabel `news_articles`. Kalau nanti ada fitur
 
 ## Cron Setup
 
-Untuk sekarang, strategi yang paling masuk akal adalah **1x sehari** karena pipeline ini batch-oriented dan free tier NewsData.io punya delay data.
+Untuk skenario ini, strategi yang paling aman adalah memisahkan job fetch dan job sentiment.
 
-Rekomendasi:
+Rekomendasi cron:
 
 ```cron
-0 6 * * * /home/devuser/projects/kabar.io/scripts/run_pipeline.sh
+CRON_TZ=Asia/Jakarta
+0 6 * * * /home/devuser/projects/kabar.io/scripts/run_fetch_news.sh
+*/10 * * * * /home/devuser/projects/kabar.io/scripts/run_sentiment_worker.sh
 ```
 
-Kenapa jam 06:00 WIB:
+Arti jadwalnya:
 
-- data hari sebelumnya sudah lebih matang
-- tidak terlalu sering membuang credit
-- cocok untuk pipeline yang dedupe by `article_id`
+- `run_fetch_news.sh` jalan sekali sehari jam 06:00 WIB
+- `run_sentiment_worker.sh` jalan setiap 10 menit
+- worker sentiment mengambil maksimal 5 artikel `pending` paling lama
+- urutan pemrosesan: `published_at_wib ASC`, lalu `fetched_at ASC`
 
 Script yang dijalankan cron:
 
 ```text
-scripts/run_pipeline.sh
+scripts/run_fetch_news.sh
+scripts/run_sentiment_worker.sh
 ```
 
-Script ini:
+Script fetch:
 
 - pindah ke root repo
 - memastikan folder `logs/` ada
-- menulis output ke `logs/pipeline.log`
+- menulis output ke `logs/fetch.log`
 
-Kalau kamu mau frekuensi lebih tinggi nanti, kita bisa naik ke 2x sehari, tapi untuk start saya sarankan tetap 1x dulu supaya sederhana dan hemat credit.
+Script sentiment:
+
+- pindah ke root repo
+- memastikan folder `logs/` ada
+- menulis output ke `logs/sentiment.log`
+- mengklaim row `pending` lalu menandai `processing` sebelum update hasil
+
+Status sentiment yang dipakai:
+
+- `pending` = belum diproses atau perlu retry
+- `processing` = sedang diklaim worker
+- `done` = sentiment, confidence, dan reason sudah terisi
+
+Kalau ada row yang gagal terus, worker tetap membatasi retry lewat `sentiment_attempts`.
 
 Contoh cleanup log mingguan:
 

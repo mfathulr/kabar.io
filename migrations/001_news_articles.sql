@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS news_articles (
     sentiment TEXT NOT NULL DEFAULT 'unknown',
     sentiment_confidence DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (sentiment_confidence >= 0 AND sentiment_confidence <= 1),
     sentiment_reason TEXT NOT NULL DEFAULT '',
+    sentiment_status TEXT NOT NULL DEFAULT 'pending',
+    sentiment_attempts INTEGER NOT NULL DEFAULT 0,
+    sentiment_processed_at TIMESTAMPTZ,
+    sentiment_last_error TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -31,6 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_news_articles_fetched_at
 
 CREATE INDEX IF NOT EXISTS idx_news_articles_source_id
     ON news_articles (source_id);
+
+CREATE INDEX IF NOT EXISTS idx_news_articles_sentiment_status_pubdate
+    ON news_articles (sentiment_status, published_at_wib ASC NULLS LAST, fetched_at ASC);
 
 CREATE OR REPLACE FUNCTION set_news_articles_updated_at()
 RETURNS TRIGGER AS $$

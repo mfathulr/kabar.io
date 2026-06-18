@@ -35,6 +35,10 @@ DB_COLUMNS = [
     "sentiment",
     "sentiment_confidence",
     "sentiment_reason",
+    "sentiment_status",
+    "sentiment_attempts",
+    "sentiment_processed_at",
+    "sentiment_last_error",
 ]
 POOL_MIN_SIZE = 1
 POOL_MAX_SIZE = 5
@@ -120,6 +124,10 @@ def _row_payload(row: pd.Series) -> dict[str, Any]:
         "sentiment": _normalize_value(row.get("sentiment")),
         "sentiment_confidence": _normalize_value(row.get("sentiment_confidence")),
         "sentiment_reason": _normalize_value(row.get("sentiment_reason")),
+        "sentiment_status": _normalize_value(row.get("sentiment_status", "pending")),
+        "sentiment_attempts": _normalize_value(row.get("sentiment_attempts", 0)),
+        "sentiment_processed_at": _normalize_value(row.get("sentiment_processed_at")),
+        "sentiment_last_error": _normalize_value(row.get("sentiment_last_error", "")),
     }
     return payload
 
@@ -144,6 +152,10 @@ def _ensure_table(conn) -> None:
             sentiment TEXT NOT NULL DEFAULT 'unknown',
             sentiment_confidence DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (sentiment_confidence >= 0 AND sentiment_confidence <= 1),
             sentiment_reason TEXT NOT NULL DEFAULT '',
+            sentiment_status TEXT NOT NULL DEFAULT 'pending',
+            sentiment_attempts INTEGER NOT NULL DEFAULT 0,
+            sentiment_processed_at TIMESTAMPTZ,
+            sentiment_last_error TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -159,6 +171,10 @@ def _ensure_table(conn) -> None:
         f"""
         CREATE INDEX IF NOT EXISTS idx_news_articles_source_id
             ON {TABLE_NAME} (source_id)
+        """,
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_news_articles_sentiment_status_pubdate
+            ON {TABLE_NAME} (sentiment_status, published_at_wib ASC NULLS LAST, fetched_at ASC)
         """,
         """
         CREATE OR REPLACE FUNCTION set_news_articles_updated_at()
@@ -215,7 +231,11 @@ def save_to_neon(df: pd.DataFrame) -> None:
                     %(domain)s,
                     %(sentiment)s,
                     %(sentiment_confidence)s,
-                    %(sentiment_reason)s
+                    %(sentiment_reason)s,
+                    %(sentiment_status)s,
+                    %(sentiment_attempts)s,
+                    %(sentiment_processed_at)s,
+                    %(sentiment_last_error)s
                 )
                 ON CONFLICT (article_id) DO UPDATE SET
                     title = EXCLUDED.title,
@@ -232,6 +252,22 @@ def save_to_neon(df: pd.DataFrame) -> None:
                     sentiment = EXCLUDED.sentiment,
                     sentiment_confidence = EXCLUDED.sentiment_confidence,
                     sentiment_reason = EXCLUDED.sentiment_reason,
+                    sentiment_status = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_status
+                        ELSE EXCLUDED.sentiment_status
+                    END,
+                    sentiment_attempts = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_attempts
+                        ELSE EXCLUDED.sentiment_attempts
+                    END,
+                    sentiment_processed_at = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_processed_at
+                        ELSE EXCLUDED.sentiment_processed_at
+                    END,
+                    sentiment_last_error = CASE
+                        WHEN {TABLE_NAME}.sentiment_status IN ('done', 'processing') THEN {TABLE_NAME}.sentiment_last_error
+                        ELSE EXCLUDED.sentiment_last_error
+                    END,
                     updated_at = NOW()
                 """,
                 rows,
@@ -255,3 +291,110 @@ def save_with_fallback(df: pd.DataFrame, fallback_csv_path: str) -> None:
     print(f"Saving {len(df)} rows to CSV fallback at '{fallback_csv_path}'...", flush=True)
     save_to_csv(df, fallback_csv_path)
     print("CSV fallback save finished.", flush=True)
+
+
+def claim_sentiment_batch(limit: int) -> pd.DataFrame:
+    """Atomically claim the next pending sentiment rows ordered by publication time."""
+    if limit <= 0:
+        return pd.DataFrame()
+
+    pool = _get_pool()
+    with pool.connection() as conn:
+        _ensure_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                WITH claimed AS (
+                    SELECT article_id
+                    FROM {TABLE_NAME}
+                    WHERE sentiment_status = 'pending'
+                      AND sentiment_attempts < 12
+                    ORDER BY published_at_wib ASC NULLS LAST, fetched_at ASC, article_id ASC
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT %s
+                )
+                UPDATE {TABLE_NAME} AS target
+                SET sentiment_status = 'processing',
+                    sentiment_attempts = target.sentiment_attempts + 1,
+                    updated_at = NOW()
+                FROM claimed
+                WHERE target.article_id = claimed.article_id
+                RETURNING
+                    target.article_id,
+                    target.title,
+                    target.description,
+                    target.source_id,
+                    target.source_url,
+                    target.country,
+                    target.category,
+                    target.language,
+                    target.published_at,
+                    target.fetched_at,
+                    target.published_at_wib,
+                    target.domain,
+                    target.sentiment,
+                    target.sentiment_confidence,
+                    target.sentiment_reason,
+                    target.sentiment_status,
+                    target.sentiment_attempts,
+                    target.sentiment_processed_at,
+                    target.sentiment_last_error
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description or []]
+
+    if not rows:
+        return pd.DataFrame()
+
+    return pd.DataFrame.from_records(rows, columns=columns)
+
+
+def update_sentiment_result(
+    article_id: str,
+    sentiment: str,
+    confidence: float,
+    reason: str,
+    status: str,
+    last_error: str = "",
+) -> None:
+    """Persist a sentiment result for one article."""
+    pool = _get_pool()
+    with pool.connection() as conn:
+        _ensure_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE {TABLE_NAME}
+                SET sentiment = %s,
+                    sentiment_confidence = %s,
+                    sentiment_reason = %s,
+                    sentiment_status = %s,
+                    sentiment_last_error = %s,
+                    sentiment_processed_at = CASE
+                        WHEN %s = 'done' THEN NOW()
+                        ELSE sentiment_processed_at
+                    END,
+                    updated_at = NOW()
+                WHERE article_id = %s
+                """,
+                (sentiment, confidence, reason, status, last_error, status, article_id),
+            )
+
+
+def reset_processing_to_pending() -> None:
+    """Reset any leftover processing rows back to pending."""
+    pool = _get_pool()
+    with pool.connection() as conn:
+        _ensure_table(conn)
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE {TABLE_NAME}
+                SET sentiment_status = 'pending',
+                    sentiment_last_error = '',
+                    updated_at = NOW()
+                WHERE sentiment_status = 'processing'
+                """
+            )

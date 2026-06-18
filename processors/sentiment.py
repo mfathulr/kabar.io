@@ -71,6 +71,72 @@ def _load_gemini_keys() -> list[str]:
     return keys
 
 
+def classify_sentiment(title: str, description: str) -> tuple[str, float, str, bool, str]:
+    """Classify one article and return sentiment data plus success state."""
+    api_keys = _load_gemini_keys()
+    if not api_keys:
+        return "unknown", 0.0, "", False, "no_gemini_keys"
+
+    user_prompt = f"Judul: {title}\nDeskripsi: {description}"
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": f"{SYSTEM_PROMPT}\n\n{user_prompt}",
+                    }
+                ],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0,
+            "responseMimeType": "application/json",
+        },
+    }
+
+    last_error = ""
+    for api_key in api_keys:
+        try:
+            response = requests.post(
+                GEMINI_ENDPOINT,
+                params={"key": api_key},
+                json=payload,
+                timeout=60,
+            )
+            if response.status_code == 429:
+                last_error = "rate_limited"
+                continue
+
+            response.raise_for_status()
+            content = _extract_message_content(response.json())
+            parsed = _safe_parse_json(content)
+
+            sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
+            if sentiment not in {"positif", "negatif", "netral"}:
+                sentiment = "unknown"
+
+            confidence_raw = parsed.get("confidence", 0.0)
+            try:
+                confidence = float(confidence_raw)
+            except (TypeError, ValueError):
+                confidence = 0.0
+            confidence = max(0.0, min(1.0, confidence))
+
+            reason = str(parsed.get("reason", "")).strip()
+            reason = " ".join(reason.split()[:10])
+            return sentiment, confidence, reason, True, ""
+        except requests.exceptions.ConnectionError as exc:
+            last_error = f"connection_error: {exc}"
+            time.sleep(1)
+            continue
+        except Exception as exc:
+            last_error = f"error: {exc}"
+            continue
+
+    return "unknown", 0.0, "", False, last_error or "unknown_error"
+
+
 def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     """Add sentiment columns to a DataFrame using the Gemini API."""
     result = df.copy()
@@ -95,69 +161,16 @@ def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
         )
 
         for idx, row in batch.iterrows():
-            user_prompt = f"Judul: {row.get('title', '')}\nDeskripsi: {row.get('description', '')}"
-            row_done = False
-            payload = {
-                "contents": [
-                    {
-                        "role": "user",
-                        "parts": [
-                            {
-                                "text": f"{SYSTEM_PROMPT}\n\n{user_prompt}",
-                            }
-                        ],
-                    }
-                ],
-                "generationConfig": {
-                    "temperature": 0,
-                    "responseMimeType": "application/json",
-                },
-            }
+            sentiment, confidence, reason, ok, error = classify_sentiment(
+                str(row.get("title", "")),
+                str(row.get("description", "")),
+            )
+            if not ok and error == "rate_limited":
+                print(f"Gemini rate limit hit for row {idx}. Trying next key.", flush=True)
 
-            for api_key in api_keys:
-                try:
-                    response = requests.post(
-                        GEMINI_ENDPOINT,
-                        params={"key": api_key},
-                        json=payload,
-                        timeout=60,
-                    )
-                    if response.status_code == 429:
-                        print(f"Gemini rate limit hit for row {idx}. Trying next key.", flush=True)
-                        continue
-
-                    response.raise_for_status()
-                    content = _extract_message_content(response.json())
-                    parsed = _safe_parse_json(content)
-
-                    sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
-                    if sentiment not in {"positif", "negatif", "netral"}:
-                        sentiment = "unknown"
-
-                    confidence_raw = parsed.get("confidence", 0.0)
-                    try:
-                        confidence = float(confidence_raw)
-                    except (TypeError, ValueError):
-                        confidence = 0.0
-                    confidence = max(0.0, min(1.0, confidence))
-
-                    reason = str(parsed.get("reason", "")).strip()
-                    reason = " ".join(reason.split()[:10])
-                    result.at[idx, "sentiment"] = sentiment
-                    result.at[idx, "sentiment_confidence"] = confidence
-                    result.at[idx, "sentiment_reason"] = reason
-                    row_done = True
-                    break
-                except requests.exceptions.ConnectionError:
-                    time.sleep(1)
-                    continue
-                except Exception:
-                    continue
-
-            if not row_done:
-                result.at[idx, "sentiment"] = "unknown"
-                result.at[idx, "sentiment_confidence"] = 0.0
-                result.at[idx, "sentiment_reason"] = ""
+            result.at[idx, "sentiment"] = sentiment
+            result.at[idx, "sentiment_confidence"] = confidence
+            result.at[idx, "sentiment_reason"] = reason
 
         if start + BATCH_SIZE < len(result):
             time.sleep(1)

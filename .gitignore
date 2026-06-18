@@ -23,3 +23,5 @@ env/
 
 # Generated data
 data/
+reference/
+logs/
