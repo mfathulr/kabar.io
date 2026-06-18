@@ -23,7 +23,7 @@ newsdata:
   base_url: https://newsdata.io/api/1
   country: id
   language: id,en
-  page_size: 10
+  page_size: 15
   active_category_set: balanced
   category_sets:
     balanced:
@@ -49,9 +49,9 @@ newsdata:
     economy:
       - business
       - technology
-      - politics
       - domestic
       - world
+      - politics
   categories:
     - politics
     - business
@@ -59,8 +59,8 @@ newsdata:
     - health
     - world
   credit_budget_per_day: 200
-  credit_buffer: 20
-  max_pages_per_category: 5
+  credit_buffer: 30
+  max_pages_per_category: 4
 
 gemini:
   model: gemini-2.5-flash

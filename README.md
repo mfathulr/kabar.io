@@ -102,7 +102,7 @@ newsdata:
   base_url: https://newsdata.io/api/1
   country: id
   language: id,en
-  page_size: 10
+  page_size: 15
   active_category_set: balanced
   category_sets:
     balanced:
@@ -128,9 +128,9 @@ newsdata:
     economy:
       - business
       - technology
-      - politics
       - domestic
       - world
+      - politics
   categories:
     - politics
     - business
@@ -138,8 +138,8 @@ newsdata:
     - health
     - world
   credit_budget_per_day: 200
-  credit_buffer: 20
-  max_pages_per_category: 5
+  credit_buffer: 30
+  max_pages_per_category: 4
 
 gemini:
   model: gemini-2.5-flash
@@ -170,10 +170,16 @@ Kenapa ini aman:
 Guard yang dipakai pipeline:
 
 - `credit_budget_per_day: 200`
-- `credit_buffer: 20`
-- `max_pages_per_category: 5`
+- `credit_buffer: 30`
+- `max_pages_per_category: 4`
 
-Artinya pipeline akan berhenti lebih awal supaya ada sisa sekitar 20 credit sebagai buffer harian, jadi tidak habis mentok di limit.
+Artinya pipeline akan berhenti lebih awal supaya ada sisa sekitar 30 credit sebagai buffer harian, jadi tidak habis mentok di limit.
+
+Dengan `page_size: 15`, estimasi untuk preset `balanced` sekarang jadi:
+
+- `5 kategori x 4 page x 15 artikel = 300 artikel` per run maksimal
+- konsumsi kredit sekitar `5 kategori x 4 page x 2 credit = 40 credit`
+- sisa buffer harian tetap besar di bawah limit `200/day`
 
 ## Referensi Kategori NewsData
 
