@@ -44,14 +44,17 @@ def topbar(nav: str, lang: str) -> None:
         dedent(
             f"""
         <div class="topbar">
-          <div class="topbar-inner">
-            <div>
-              <h1 class="page-title">{esc(title)}</h1>
-              <p class="page-subtitle">{esc(subtitle)}</p>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="live-badge"><span style="width:5px;height:5px;border-radius:50%;background:#2d7a3a;display:inline-block"></span>Live</div>
-              <div class="export-btn">Export</div>
+          <div class="topbar-surface">
+            <div class="topbar-inner">
+              <div class="topbar-copy">
+                <h1 class="page-title">{esc(title)}</h1>
+                <p class="page-subtitle">{esc(subtitle)}</p>
+              </div>
+              <div class="topbar-rail">
+                <div class="topbar-kicker">Live overview</div>
+                <div class="live-badge"><span style="width:5px;height:5px;border-radius:50%;background:#2d7a3a;display:inline-block"></span>Live</div>
+                <div class="export-btn">Export</div>
+              </div>
             </div>
           </div>
         </div>
