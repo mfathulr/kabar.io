@@ -5,3 +5,4 @@ tqdm
 PyYAML
 psycopg[binary]
 psycopg-pool
+streamlit
