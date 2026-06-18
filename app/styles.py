@@ -109,8 +109,44 @@ BASE_CSS = """
   .bar-track { height: 8px; background: #e8e0d4; border-radius: 4px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 4px; }
   .subtle-rule { border-top: 1px solid #e8e0d4; margin-top: 10px; padding-top: 10px; }
-  .word-cloud { display: flex; flex-wrap: wrap; gap: 5px 10px; line-height: 1.7; }
-  .word-cloud span { font-family: Georgia, serif; opacity: 0.6; }
+  .word-cloud-circle {
+    position: relative;
+    width: 100%;
+    min-height: 300px;
+    max-height: 340px;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at center, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.86) 42%, rgba(245,242,236,0.65) 72%, rgba(245,242,236,0.25) 100%);
+  }
+  .word-cloud-item {
+    position: absolute;
+  }
+  .word-cloud-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    font-family: Georgia, serif;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    transform-origin: center;
+    border-radius: 999px;
+    padding: 3px 10px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 1px 2px rgba(44,28,12,0.05);
+    opacity: var(--chip-opacity, 0.86);
+    animation-name: word-cloud-float;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    will-change: transform;
+  }
+  @keyframes word-cloud-float {
+    0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+    50% { transform: translateY(-4px) rotate(1.5deg); }
+  }
   .table-wrap { overflow-x: auto; }
   table.news-table { width: 100%; border-collapse: collapse; min-width: 580px; }
   .news-table thead tr { border-bottom: 2px solid #e8e0d4; }

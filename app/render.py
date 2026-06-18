@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import streamlit as st
 from textwrap import dedent
@@ -346,9 +348,60 @@ def mk_word_cloud(words: list[dict[str, object]]) -> str:
     colors = {"positive": "#2d7a3a", "negative": "#cc2200", "neutral": "#b09580"}
     if not words:
         words = [{"w": "kabar", "sz": 22, "s": "neutral"}]
+    ranked = sorted(words, key=lambda row: float(row.get("sz", 0)), reverse=True)
+    if len(ranked) == 1:
+        ranked = ranked * 1
+
     parts = []
-    for row in words:
-        size = float(row["sz"]) * 0.4 + 7
-        opacity = 0.55 + (float(row["sz"]) / 32) * 0.45
-        parts.append(f'<span style="font-size:{size}px;color:{colors.get(str(row["s"]), "#b09580")};opacity:{opacity};cursor:default">{esc(row["w"])}</span>')
-    return f'<div class="word-cloud">{"".join(parts)}</div>'
+    size_scale = [float(row.get("sz", 18)) for row in ranked]
+    max_size = max(size_scale) if size_scale else 18.0
+    min_size = min(size_scale) if size_scale else 18.0
+    min_dim = 100
+
+    def scaled_size(raw_size: float) -> float:
+        if max_size == min_size:
+            return 18.0
+        spread = (raw_size - min_size) / (max_size - min_size)
+        return 14.0 + spread * 20.0
+
+    layout: list[tuple[dict[str, object], float, float]] = []
+    center = ranked[0]
+    layout.append((center, 50.0, 50.0))
+
+    remaining = ranked[1:]
+    if remaining:
+        ring_plan = [6, 10, 14, 18]
+        idx = 0
+        ring_index = 0
+        while idx < len(remaining):
+            ring_count = ring_plan[ring_index] if ring_index < len(ring_plan) else ring_plan[-1] + (ring_index - len(ring_plan) + 1) * 6
+            ring_items = remaining[idx : idx + ring_count]
+            radius = 14 + ring_index * 12
+            for i, row in enumerate(ring_items):
+                angle = (2 * math.pi * i / max(len(ring_items), 1)) - math.pi / 2
+                jitter = (ring_index % 2) * (math.pi / max(len(ring_items), 1))
+                x = 50.0 + math.cos(angle + jitter) * radius
+                y = 50.0 + math.sin(angle + jitter) * radius
+                layout.append((row, x, y))
+            idx += ring_count
+            ring_index += 1
+
+    for row, x, y in layout:
+        size = float(row["sz"])
+        color = colors.get(str(row["s"]), "#b09580")
+        font_size = scaled_size(size)
+        left = max(6.0, min(94.0, x))
+        top = max(6.0, min(94.0, y))
+        weight = 700 if size == max_size else 600 if size > (max_size + min_size) / 2 else 500
+        word_key = str(row["w"])
+        seed = sum(ord(ch) for ch in word_key)
+        delay = round(-((seed % 7000) / 7000) * 6, 2)
+        duration = 9 + ((seed % 5) * 1.5)
+        parts.append(
+            f'<span class="word-cloud-item" style="left:{left}%;top:{top}%;transform:translate(-50%,-50%);">'
+            f'<span class="word-cloud-chip" style="font-size:{font_size}px;color:{color};font-weight:{weight};'
+            f'animation-duration:{duration:.1f}s;animation-delay:{delay}s;'
+            f'--chip-opacity:{0.78 + (font_size / 34.0) * 0.22};">{esc(row["w"])}</span>'
+            f"</span>"
+        )
+    return f'<div class="word-cloud-circle">{"".join(parts)}</div>'

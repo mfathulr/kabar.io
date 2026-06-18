@@ -298,10 +298,23 @@ def build_word_cloud_rows(df: pd.DataFrame) -> list[dict[str, object]]:
             sentiment_votes[word][sentiment] += 1
 
     rows = []
-    for word, count in tokens.most_common(24):
+    ranked = tokens.most_common(24)
+    if not ranked:
+        return [{"w": "kabar", "sz": 22, "s": "neutral"}]
+
+    counts = [count for _, count in ranked]
+    min_count = min(counts)
+    max_count = max(counts)
+
+    for word, count in ranked:
         dominant = sentiment_votes[word].most_common(1)[0][0] if sentiment_votes[word] else "neutral"
-        rows.append({"w": word, "sz": min(32, 8 + count * 2), "s": dominant if dominant in {"positive", "negative", "neutral"} else "neutral"})
-    return rows or [{"w": "kabar", "sz": 22, "s": "neutral"}]
+        if max_count == min_count:
+            size = 18
+        else:
+            spread = (count - min_count) / (max_count - min_count)
+            size = round(14 + spread * 22)
+        rows.append({"w": word, "sz": size, "s": dominant if dominant in {"positive", "negative", "neutral"} else "neutral", "n": count})
+    return rows
 
 
 def filter_articles(
