@@ -4,8 +4,15 @@ from __future__ import annotations
 BASE_CSS = """
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
-  html, body, [class*="stApp"] { background: #f5f2ec; color: #2d2a25; }
-  .stApp { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, sans-serif; }
+  :root {
+    --font-body: system-ui, -apple-system, "Segoe UI", Helvetica, sans-serif;
+    --font-display: "Playfair Display", Georgia, serif;
+    --text-main: #2d2a25;
+    --text-muted: #6f665b;
+    --text-soft: #83786c;
+  }
+  html, body, [class*="stApp"] { background: #f5f2ec; color: var(--text-main); }
+  .stApp { font-family: var(--font-body); }
   #MainMenu, footer { display: none; }
   header {
     visibility: visible;
@@ -77,7 +84,7 @@ BASE_CSS = """
   }
   .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .page-title {
-    margin: 0; font-family: "Playfair Display", Georgia, serif; font-size: 20px; font-weight: 700; line-height: 1.2;
+    margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.2;
     color: #2d2a25; letter-spacing: -0.3px;
   }
   .page-subtitle { margin: 3px 0 0; font-size: 12px; color: #786f62; }
@@ -93,18 +100,18 @@ BASE_CSS = """
   }
   .panel.compact { padding: 16px 18px; }
   .card-title { font-size: 13px; font-weight: 600; color: #2d2a25; margin: 0 0 14px; letter-spacing: -0.2px; }
-  .card-subtitle { font-size: 11px; color: #786f62; margin: 0 0 14px; }
+  .card-subtitle { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; line-height: 1.45; }
   .kpi-label {
-    font-size: 10px; font-weight: 700; color: #786f62; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+    font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
   }
   .kpi-value {
-    font-family: "Playfair Display", Georgia, serif; font-size: 32px; font-weight: 700; line-height: 1; color: #2d2a25; margin-bottom: 4px;
+    font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1; color: #2d2a25; margin-bottom: 4px;
   }
-  .kpi-note { font-size: 11px; color: #786f62; }
+  .kpi-note { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
   .metric-positive { color: #2d7a3a; }
   .metric-negative { color: #cc2200; }
   .legend-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
-  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #786f62; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-muted); }
   .legend-swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex: 0 0 auto; }
   .bar-track { height: 8px; background: #e8e0d4; border-radius: 4px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 4px; }
@@ -128,7 +135,7 @@ BASE_CSS = """
     align-items: center;
     justify-content: center;
     white-space: nowrap;
-    font-family: Georgia, serif;
+    font-family: var(--font-display);
     line-height: 1;
     letter-spacing: -0.01em;
     transform-origin: center;
@@ -137,7 +144,7 @@ BASE_CSS = """
     background: rgba(255,255,255,0.7);
     border: 1px solid rgba(0,0,0,0.04);
     box-shadow: 0 1px 2px rgba(44,28,12,0.05);
-    opacity: var(--chip-opacity, 0.86);
+    opacity: var(--chip-opacity, 0.9);
     animation-name: word-cloud-float;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
@@ -163,15 +170,15 @@ BASE_CSS = """
   .pill-neutral { background: #f2ede8; color: #786f62; }
   .sidebar-brand { padding: 22px 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .sidebar-logo {
-    font-family: "Playfair Display", Georgia, serif; font-size: 22px; font-weight: 700; color: #f0ede8;
+    font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #f0ede8;
     letter-spacing: -0.5px; line-height: 1;
   }
   .sidebar-logo .accent { color: #cc2200; }
-  .sidebar-subtitle { font-size: 10px; color: #3d3028; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .sidebar-subtitle { font-size: 10.5px; color: #3d3028; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.07em; }
   .sidebar-section-title {
-    font-size: 9px; font-weight: 700; color: #3a2f27; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px;
+    font-size: 10px; font-weight: 700; color: #3a2f27; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px;
   }
-  .sidebar-label { font-size: 10.5px; color: #5c5048; margin-bottom: 7px; font-weight: 500; }
+  .sidebar-label { font-size: 11px; color: #5c5048; margin-bottom: 7px; font-weight: 500; }
   .status-box {
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 9px 11px;
   }
@@ -185,10 +192,10 @@ BASE_CSS = """
   .muted { color: #786f62; }
   .section-pad { padding: 22px 28px 32px; }
   .gauge-wrap { display: flex; align-items: center; justify-content: center; }
-  .bar-caption { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 12px; }
+  .bar-caption { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 12.5px; }
   .chip {
-    display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 10px;
-    background: #e8e0d4; color: #786f62; font-size: 11.5px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 10px;
+    background: #e8e0d4; color: var(--text-muted); font-size: 12px; font-weight: 500;
   }
   .stRadio > div { gap: 4px; }
   .stRadio label { font-size: 13px; }

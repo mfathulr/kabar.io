@@ -23,8 +23,8 @@ def mk_donut(sentiment_counts: dict[str, int], total: int) -> str:
       <circle cx="50" cy="50" r="32.25" fill="none" stroke="#2d7a3a" stroke-width="13" stroke-dasharray="{p_len} {c}" transform="rotate(-90 50 50)"></circle>
       <circle cx="50" cy="50" r="32.25" fill="none" stroke="#cc2200" stroke-width="13" stroke-dasharray="{n_len} {c}" stroke-dashoffset="-{p_len}" transform="rotate(-90 50 50)"></circle>
       <circle cx="50" cy="50" r="32.25" fill="none" stroke="#b09580" stroke-width="13" stroke-dasharray="{u_len} {c}" stroke-dashoffset="-{p_len + n_len}" transform="rotate(-90 50 50)"></circle>
-      <text x="50" y="47" text-anchor="middle" font-size="9" font-weight="700" fill="#2d2a25" font-family="system-ui">{total:,}</text>
-      <text x="50" y="56" text-anchor="middle" font-size="4.5" fill="#786f62" font-family="system-ui">artikel</text>
+      <text x="50" y="47" text-anchor="middle" font-size="10" font-weight="700" fill="#2d2a25" font-family="system-ui">{total:,}</text>
+      <text x="50" y="56" text-anchor="middle" font-size="5.5" fill="#786f62" font-family="system-ui">artikel</text>
     </svg>
     """
 
@@ -54,13 +54,13 @@ def mk_timeseries(rows: list[dict[str, object]]) -> str:
     for v in [0, 25, 50, 75, 100]:
         grid.append(
             f'<g><line x1="{p_l}" y1="{y(v):.1f}" x2="{w-p_r}" y2="{y(v):.1f}" stroke="#e8e0d4" stroke-width="0.65"></line>'
-            f'<text x="{p_l-4}" y="{y(v)+3:.1f}" text-anchor="end" font-size="5.4" fill="#786f62">{v}</text></g>'
+            f'<text x="{p_l-4}" y="{y(v)+3:.1f}" text-anchor="end" font-size="5.8" fill="#786f62">{v}</text></g>'
         )
     labels = []
     step = max(1, math.ceil(len(rows) / 7))
     for i, row in enumerate(rows):
         if i % step == 0:
-            labels.append(f'<text x="{x(i):.1f}" y="{h-p_b+13}" text-anchor="middle" font-size="5" fill="#786f62">{esc(row["d"])}</text>')
+                labels.append(f'<text x="{x(i):.1f}" y="{h-p_b+13}" text-anchor="middle" font-size="5.8" fill="#786f62">{esc(row["d"])}</text>')
     return f"""
     <svg viewBox="0 0 {w} {h}" style="width:100%;height:100%">
       {"".join(grid)}
@@ -88,11 +88,11 @@ def mk_category_chart(categories: list[dict[str, object]], lang: str) -> str:
         n_w = (int(row["ne"]) / n_val) * b_w
         label = row["id"] if lang == "id" else row["en"]
         rows.append(
-            f'<g><text x="{p_l-6}" y="{y+b_h/2+3.6}" text-anchor="end" font-size="8.2" fill="#2d2a25">{esc(label)}</text>'
+            f'<g><text x="{p_l-6}" y="{y+b_h/2+3.6}" text-anchor="end" font-size="8.8" fill="#2d2a25">{esc(label)}</text>'
             f'<rect x="{p_l}" y="{y}" width="{p_w}" height="{b_h}" fill="#2d7a3a"></rect>'
             f'<rect x="{p_l+p_w}" y="{y}" width="{n_w}" height="{b_h}" fill="#cc2200"></rect>'
             f'<rect x="{p_l+p_w+n_w}" y="{y}" width="{b_w-p_w-n_w}" height="{b_h}" fill="#b09580"></rect>'
-            f'<text x="{p_l+b_w+5}" y="{y+b_h/2+3.6}" font-size="7.4" fill="#786f62">{n_val}</text></g>'
+            f'<text x="{p_l+b_w+5}" y="{y+b_h/2+3.6}" font-size="7.9" fill="#786f62">{n_val}</text></g>'
         )
     return f'<svg viewBox="0 0 {w} {h}" style="width:100%;height:100%">{"".join(rows)}</svg>'
 
@@ -119,13 +119,13 @@ def mk_heatmap(categories: list[dict[str, object]], lang: str) -> str:
             tc = "#ffffff" if a > 0.48 else "#2d2a25"
             label = cat["id"] if lang == "id" else cat["en"]
             if si == 0:
-                cells.append(f'<text x="{p_l-7}" y="{p_t+ci*c_h+(c_h-3)/2+3.6}" text-anchor="end" font-size="8" fill="#2d2a25">{esc(label)}</text>')
+                cells.append(f'<text x="{p_l-7}" y="{p_t+ci*c_h+(c_h-3)/2+3.6}" text-anchor="end" font-size="8.6" fill="#2d2a25">{esc(label)}</text>')
             cells.append(f'<rect x="{x}" y="{y}" width="{c_w-3}" height="{c_h-3}" fill="{sent["c"]}{hex_alpha}" rx="3"></rect>')
-            cells.append(f'<text x="{x+(c_w-3)/2}" y="{y+(c_h-3)/2+3.6}" text-anchor="middle" font-size="9" font-weight="600" fill="{tc}">{v}</text>')
+            cells.append(f'<text x="{x+(c_w-3)/2}" y="{y+(c_h-3)/2+3.6}" text-anchor="middle" font-size="9.5" font-weight="600" fill="{tc}">{v}</text>')
     headers = []
     for i, sent in enumerate(sents):
         label = sent["li"] if lang == "id" else sent["le"]
-        headers.append(f'<text x="{p_l+i*c_w+(c_w-3)/2}" y="{p_t-9}" text-anchor="middle" font-size="7" fill="#786f62">{esc(label)}</text>')
+        headers.append(f'<text x="{p_l+i*c_w+(c_w-3)/2}" y="{p_t-9}" text-anchor="middle" font-size="7.5" fill="#786f62">{esc(label)}</text>')
     return f'<svg viewBox="0 0 {w} {h}" style="width:100%;height:100%">{"".join(cells)}{"".join(headers)}</svg>'
 
 
@@ -143,11 +143,11 @@ def mk_source_chart(sources: list[dict[str, object]]) -> str:
         p_w = (int(row["p"]) / n_val) * b_w
         n_w = (int(row["ne"]) / n_val) * b_w
         rows.append(
-            f'<g><text x="{p_l-7}" y="{y+b_h/2+3.6}" text-anchor="end" font-size="8" fill="#2d2a25">{esc(row["name"])}</text>'
+            f'<g><text x="{p_l-7}" y="{y+b_h/2+3.6}" text-anchor="end" font-size="8.6" fill="#2d2a25">{esc(row["name"])}</text>'
             f'<rect x="{p_l}" y="{y}" width="{p_w}" height="{b_h}" fill="#2d7a3a"></rect>'
             f'<rect x="{p_l+p_w}" y="{y}" width="{n_w}" height="{b_h}" fill="#cc2200"></rect>'
             f'<rect x="{p_l+p_w+n_w}" y="{y}" width="{b_w-p_w-n_w}" height="{b_h}" fill="#b09580"></rect>'
-            f'<text x="{p_l+b_w+7}" y="{y+b_h/2+3.6}" font-size="7.5" fill="#786f62">{n_val} · {int(row["pp"])}%+</text></g>'
+            f'<text x="{p_l+b_w+7}" y="{y+b_h/2+3.6}" font-size="8" fill="#786f62">{n_val} · {int(row["pp"])}%+</text></g>'
         )
     return f'<svg viewBox="0 0 {w} {h}" style="width:100%;height:100%">{"".join(rows)}</svg>'
 
@@ -178,7 +178,7 @@ def mk_gauge(avg_conf: float) -> str:
       <path d="{vp}" fill="none" stroke="#2d7a3a" stroke-width="9" stroke-linecap="round"></path>
       <line x1="{cx}" y1="{cy}" x2="{nx:.2f}" y2="{ny:.2f}" stroke="#2d2a25" stroke-width="1.5" stroke-linecap="round"></line>
       <circle cx="{cx}" cy="{cy}" r="3" fill="#2d2a25"></circle>
-      <text x="{cx}" y="{cy-8.5}" text-anchor="middle" font-size="14" font-weight="700" fill="#2d2a25" font-family="system-ui">{round(val * 100):.0f}%</text>
-      <text x="{cx}" y="{cy-1}" text-anchor="middle" font-size="4.5" fill="#786f62" font-family="system-ui">avg confidence</text>
+      <text x="{cx}" y="{cy-8.5}" text-anchor="middle" font-size="14.5" font-weight="700" fill="#2d2a25" font-family="system-ui">{round(val * 100):.0f}%</text>
+      <text x="{cx}" y="{cy-1}" text-anchor="middle" font-size="5.5" fill="#786f62" font-family="system-ui">avg confidence</text>
     </svg>
     """

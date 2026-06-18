@@ -356,8 +356,6 @@ def mk_word_cloud(words: list[dict[str, object]]) -> str:
     size_scale = [float(row.get("sz", 18)) for row in ranked]
     max_size = max(size_scale) if size_scale else 18.0
     min_size = min(size_scale) if size_scale else 18.0
-    min_dim = 100
-
     def scaled_size(raw_size: float) -> float:
         if max_size == min_size:
             return 18.0

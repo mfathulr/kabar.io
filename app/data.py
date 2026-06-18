@@ -309,10 +309,10 @@ def build_word_cloud_rows(df: pd.DataFrame) -> list[dict[str, object]]:
     for word, count in ranked:
         dominant = sentiment_votes[word].most_common(1)[0][0] if sentiment_votes[word] else "neutral"
         if max_count == min_count:
-            size = 18
+            size = 20
         else:
             spread = (count - min_count) / (max_count - min_count)
-            size = round(14 + spread * 22)
+            size = round(16 + spread * 24)
         rows.append({"w": word, "sz": size, "s": dominant if dominant in {"positive", "negative", "neutral"} else "neutral", "n": count})
     return rows
 
