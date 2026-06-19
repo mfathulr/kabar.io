@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 import requests
 
-from config import GEMINI_API_KEYS, GEMINI_MODEL
+from config import GEMINI_API_KEYS, GEMINI_MODEL, GEMINI_MODELS
 
 
 SYSTEM_PROMPT = (
@@ -19,12 +19,9 @@ SYSTEM_PROMPT = (
     "berita berikut. Jawab HANYA dengan JSON format: "
     "{sentiment: positif|negatif|netral, confidence: 0.0-1.0, reason: string max 10 kata}"
 )
-MODEL = GEMINI_MODEL
-GEMINI_ENDPOINT = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
-)
 BATCH_SIZE = 10
 GEMINI_KEYS_ENV = "GEMINI_API_KEYS"
+GEMINI_MODELS_ENV = "GEMINI_MODELS"
 
 
 def _safe_parse_json(content: str) -> dict[str, Any]:
@@ -72,11 +69,26 @@ def _load_gemini_keys() -> list[str]:
     return keys
 
 
+def _load_gemini_models() -> list[str]:
+    """Load the model fallback order from env/config."""
+    raw_models = os.getenv(GEMINI_MODELS_ENV, "").strip()
+    if raw_models:
+        models = [model.strip() for model in raw_models.split(",") if model.strip()]
+        if models:
+            return models
+    if GEMINI_MODELS:
+        return list(dict.fromkeys([model.strip() for model in GEMINI_MODELS if model.strip()]))
+    return [GEMINI_MODEL]
+
+
 def classify_sentiment(title: str, description: str) -> tuple[str, float, str, bool, str]:
     """Classify one article and return sentiment data plus success state."""
     api_keys = _load_gemini_keys()
+    models = _load_gemini_models()
     if not api_keys:
         return "unknown", 0.0, "", False, "no_gemini_keys"
+    if not models:
+        return "unknown", 0.0, "", False, "no_gemini_models"
 
     user_prompt = f"Judul: {title}\nDeskripsi: {description}"
     payload = {
@@ -97,43 +109,45 @@ def classify_sentiment(title: str, description: str) -> tuple[str, float, str, b
     }
 
     last_error = ""
-    for api_key in api_keys:
-        try:
-            response = requests.post(
-                GEMINI_ENDPOINT,
-                params={"key": api_key},
-                json=payload,
-                timeout=60,
-            )
-            if response.status_code == 429:
-                last_error = "rate_limited"
-                continue
-
-            response.raise_for_status()
-            content = _extract_message_content(response.json())
-            parsed = _safe_parse_json(content)
-
-            sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
-            if sentiment not in {"positif", "negatif", "netral"}:
-                sentiment = "unknown"
-
-            confidence_raw = parsed.get("confidence", 0.0)
+    for model in models:
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        for api_key in api_keys:
             try:
-                confidence = float(confidence_raw)
-            except (TypeError, ValueError):
-                confidence = 0.0
-            confidence = max(0.0, min(1.0, confidence))
+                response = requests.post(
+                    endpoint,
+                    params={"key": api_key},
+                    json=payload,
+                    timeout=60,
+                )
+                if response.status_code == 429:
+                    last_error = f"rate_limited:{model}"
+                    continue
 
-            reason = str(parsed.get("reason", "")).strip()
-            reason = " ".join(reason.split()[:10])
-            return sentiment, confidence, reason, True, ""
-        except requests.exceptions.ConnectionError as exc:
-            last_error = f"connection_error: {exc}"
-            time.sleep(1)
-            continue
-        except Exception as exc:
-            last_error = f"error: {exc}"
-            continue
+                response.raise_for_status()
+                content = _extract_message_content(response.json())
+                parsed = _safe_parse_json(content)
+
+                sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
+                if sentiment not in {"positif", "negatif", "netral"}:
+                    sentiment = "unknown"
+
+                confidence_raw = parsed.get("confidence", 0.0)
+                try:
+                    confidence = float(confidence_raw)
+                except (TypeError, ValueError):
+                    confidence = 0.0
+                confidence = max(0.0, min(1.0, confidence))
+
+                reason = str(parsed.get("reason", "")).strip()
+                reason = " ".join(reason.split()[:10])
+                return sentiment, confidence, reason, True, ""
+            except requests.exceptions.ConnectionError as exc:
+                last_error = f"connection_error:{model}:{exc}"
+                time.sleep(1)
+                continue
+            except Exception as exc:
+                last_error = f"error:{model}:{exc}"
+                continue
 
     return "unknown", 0.0, "", False, last_error or "unknown_error"
 
@@ -146,8 +160,10 @@ def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
     result["sentiment_reason"] = ""
 
     api_keys = _load_gemini_keys()
+    models = _load_gemini_models()
     if not api_keys or result.empty:
         return result
+    print(f"Gemini model order: {', '.join(models)}", flush=True)
 
     total_batches = (len(result) + BATCH_SIZE - 1) // BATCH_SIZE
     print(f"Starting sentiment analysis for {len(result)} rows across {total_batches} batches.", flush=True)

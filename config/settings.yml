@@ -68,6 +68,12 @@ newsdata:
 
 gemini:
   model: gemini-2.5-flash
+  # Free-tier fallback order for sentiment analysis.
+  # Primary model stays on Gemini 2.5 Flash; fallback uses Flash Lite preview
+  # if the primary model is rate-limited or unavailable.
+  models:
+    - gemini-2.5-flash
+    - gemini-2.5-flash-lite-preview-09-2025
 
 output:
   csv: data/news.csv

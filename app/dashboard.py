@@ -53,13 +53,10 @@ def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None)
 
         nav = st.radio(
             "Navigation",
-            ["overview", "sentiment", "category", "source", "news"],
-            index=["overview", "sentiment", "category", "source", "news"].index(st.session_state.nav),
+            ["analysis", "news"],
+            index=["analysis", "news"].index(st.session_state.nav),
             format_func=lambda value: {
-                "overview": "Ringkasan",
-                "sentiment": "Sentimen",
-                "category": "Kategori",
-                "source": "Sumber",
+                "analysis": "Analisis",
                 "news": "Berita",
             }[value],
             label_visibility="collapsed",
@@ -163,7 +160,7 @@ def recover_sidebar() -> None:
 
 def main() -> None:
     st.set_page_config(page_title="kabar.io Dashboard", layout="wide", initial_sidebar_state="expanded")
-    st.session_state.setdefault("nav", "overview")
+    st.session_state.setdefault("nav", "analysis")
     st.session_state.setdefault("lang", "id")
     st.session_state.setdefault("dark", False)
     st.session_state.setdefault("sent_f", "all")
@@ -171,6 +168,9 @@ def main() -> None:
     st.session_state.setdefault("search", "")
 
     st.markdown(page_css(), unsafe_allow_html=True)
+
+    if st.session_state.nav not in {"analysis", "news"}:
+        st.session_state.nav = "analysis"
 
     raw_df, source_name, source_note, refresh_at = load_dashboard_snapshot()
     st.session_state.latest_refresh_at = refresh_at

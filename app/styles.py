@@ -83,12 +83,12 @@ BASE_CSS = """
   }
   .topbar {
     position: sticky; top: 0; z-index: 10;
-    padding: 10px 28px 0;
+    padding: 8px 28px 0;
     background: rgba(245,242,236,0.96);
     backdrop-filter: blur(8px);
   }
-  .topbar-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 0 6px; }
-  .topbar-copy { display: flex; flex-direction: column; gap: 4px; }
+  .topbar-inner { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 0 4px; }
+  .topbar-copy { display: flex; flex-direction: column; gap: 2px; }
   .page-title {
     margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 700; line-height: 1.08;
     color: #2d2a25; letter-spacing: -0.3px;
@@ -96,14 +96,15 @@ BASE_CSS = """
   .topbar-divider {
     height: 1px;
     background: linear-gradient(90deg, #e8e0d4 0%, rgba(232,224,212,0.2) 100%);
+    margin: 0 0 2px;
   }
   .refresh-strip {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 2px 0 0;
-    margin: 0 0 4px;
+    padding: 0;
+    margin: 0 0 2px;
   }
   .refresh-meta {
     margin: 0;
@@ -233,8 +234,26 @@ BASE_CSS = """
   .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .grid-4-small { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .muted { color: var(--text-soft); }
-  .section-pad { padding: 18px 28px 24px; }
-  .section-tight { padding-top: 0; }
+  .section-pad { padding: 16px 28px 20px; }
+  .section-tight { padding-top: 4px; }
+  .analysis-section {
+    margin: 0 0 12px;
+  }
+  .analysis-section-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #2d2a25;
+    letter-spacing: -0.25px;
+    margin: 0 0 4px;
+  }
+  .analysis-section-subtitle {
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-soft);
+    margin: 0;
+  }
   .toolbar-label {
     font-size: 11px;
     font-weight: 700;

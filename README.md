@@ -7,7 +7,7 @@
 - Ambil berita dari beberapa kategori NewsData.io
 - Pagination lewat `nextPage`
 - Clean data dengan `pandas`
-- Analisis sentimen dengan Gemini `gemini-2.5-flash`
+- Analisis sentimen dengan Gemini `gemini-2.5-flash`, fallback ke `gemini-2.5-flash-lite-preview-09-2025`
 - Simpan hasil ke Neon Postgres, fallback ke CSV jika DB tidak tersedia
 - Deduplication berdasarkan `article_id`
 
@@ -70,6 +70,7 @@ Pakai `.env` di root project untuk secret:
 ```env
 NEWSDATA_API_KEY=your_key_here
 GEMINI_API_KEYS=key1,key2,key3
+GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite-preview-09-2025
 DATABASE_URL=postgresql://user:password@ep-xxxx-pooler.us-east-2.aws.neon.tech/dbname?sslmode=require&channel_binding=require
 ```
 
@@ -79,6 +80,7 @@ Catatan:
 
 - `NEWSDATA_API_KEY` wajib untuk fetch berita
 - `GEMINI_API_KEYS` dipakai untuk sentiment analysis
+- `GEMINI_MODELS` opsional untuk mengatur urutan fallback model Gemini
 - `DATABASE_URL` dipakai untuk Neon Postgres, sebaiknya pakai pooled connection string dari Neon Console
 - Tidak ada hardcoded key di source code
 
@@ -143,6 +145,9 @@ newsdata:
 
 gemini:
   model: gemini-2.5-flash
+  models:
+    - gemini-2.5-flash
+    - gemini-2.5-flash-lite-preview-09-2025
 
 output:
   csv: data/news.csv
@@ -363,6 +368,7 @@ Di Neon, status sentiment juga tersedia:
 - `sentiment_attempts`
 - `sentiment_processed_at`
 - `sentiment_last_error`
+- `sentiment` diproses dengan fallback model: primary `gemini-2.5-flash`, lalu `gemini-2.5-flash-lite-preview-09-2025`
 
 ## Catatan Perilaku
 
@@ -370,8 +376,9 @@ Di Neon, status sentiment juga tersedia:
 - Kalau API mengembalikan `429`, artikel pada kategori itu akan dilewati
 - Sentiment diproses per batch 10 baris dengan jeda 1 detik antar batch
 - Neon dan CSV sama-sama dedupe berdasarkan `article_id`
-- Gemini API free tier dipakai lewat `gemini-2.5-flash`
+- Gemini API free tier dipakai lewat `gemini-2.5-flash` dengan fallback model `gemini-2.5-flash-lite-preview-09-2025`
 - Kalau ada beberapa key di `GEMINI_API_KEYS`, sistem akan mencoba key berikutnya saat key sebelumnya kena limit atau error jaringan
+- Kalau model utama kena limit atau error, worker akan coba model fallback berikutnya sebelum menandai baris tetap `pending`
 - `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan fallback CSV
 - `scripts/run_fetch_news.sh` dipakai untuk cron fetch harian
 - `scripts/run_sentiment_worker.sh` dipakai untuk cron sentiment setiap 10 menit

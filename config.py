@@ -41,7 +41,10 @@ DEFAULT_SETTINGS: dict[str, Any] = {
         "credit_buffer": 20,
         "max_pages_per_category": 5,
     },
-    "gemini": {"model": "gemini-2.5-flash"},
+    "gemini": {
+        "model": "gemini-2.5-flash",
+        "models": ["gemini-2.5-flash", "gemini-2.5-flash-lite-preview-09-2025"],
+    },
     "output": {"csv": "data/news.csv"},
 }
 
@@ -107,5 +110,20 @@ NEWSDATA_CREDIT_BUFFER = int(
 
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "")
 GEMINI_API_KEYS = os.getenv("GEMINI_API_KEYS", "")
+_GEMINI_MODELS_RAW = os.getenv("GEMINI_MODELS", "").strip()
+if _GEMINI_MODELS_RAW:
+    GEMINI_MODELS = [model.strip() for model in _GEMINI_MODELS_RAW.split(",") if model.strip()]
+else:
+    raw_models = GEMINI_SETTINGS.get("models")
+    if isinstance(raw_models, list) and raw_models:
+        GEMINI_MODELS = [str(model).strip() for model in raw_models if str(model).strip()]
+    else:
+        GEMINI_MODELS = []
+
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", str(GEMINI_SETTINGS.get("model", DEFAULT_SETTINGS["gemini"]["model"])))
+if not GEMINI_MODELS:
+    GEMINI_MODELS = [GEMINI_MODEL]
+else:
+    seen: set[str] = set()
+    GEMINI_MODELS = [model for model in GEMINI_MODELS if not (model in seen or seen.add(model))]
 OUTPUT_CSV = str(OUTPUT_SETTINGS.get("csv", DEFAULT_SETTINGS["output"]["csv"]))

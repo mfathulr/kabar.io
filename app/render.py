@@ -7,19 +7,16 @@ import streamlit as st
 from textwrap import dedent
 
 try:
-    from .charts import mk_category_chart, mk_donut, mk_gauge, mk_heatmap, mk_source_chart, mk_timeseries
+    from .charts import mk_category_chart, mk_donut, mk_source_chart, mk_timeseries
     from .data import category_label, esc, t
 except ImportError:  # pragma: no cover - script-style fallback
-    from charts import mk_category_chart, mk_donut, mk_gauge, mk_heatmap, mk_source_chart, mk_timeseries
+    from charts import mk_category_chart, mk_donut, mk_source_chart, mk_timeseries
     from data import category_label, esc, t
 
 
 def nav_titles(nav: str, lang: str) -> tuple[str, str]:
     titles = {
-        "overview": (t(lang, "Ringkasan", "Overview"), t(lang, "Gambaran umum berita Indonesia hari ini", "Overview of today's Indonesian news landscape")),
-        "sentiment": (t(lang, "Analisis Sentimen", "Sentiment Analysis"), t(lang, "Tren sentimen berdasarkan data nyata", "Sentiment trends based on live data")),
-        "category": (t(lang, "Distribusi Kategori", "Category Distribution"), t(lang, "Distribusi artikel per topik dan tone editorial", "Article distribution by topic and editorial tone")),
-        "source": (t(lang, "Perbandingan Sumber", "Source Comparison"), t(lang, "Perbandingan tone editorial lintas media", "Editorial tone comparison across media")),
+        "analysis": (t(lang, "Analisis", "Analysis"), t(lang, "Ringkasan, sentimen, kategori, dan sumber dalam satu alur", "Summary, sentiment, category, and source in one flow")),
         "news": (t(lang, "Feed Berita", "News Feed"), t(lang, "Jelajahi artikel yang diproses pipeline", "Browse articles processed by the pipeline")),
     }
     return titles[nav]
@@ -67,6 +64,15 @@ def metric_card(title: str, value: str, note: str, accent: str = "muted") -> str
     )
 
 
+def analysis_section(title: str, subtitle: str) -> str:
+    return (
+        f'<div class="analysis-section">'
+        f'<div class="analysis-section-title">{esc(title)}</div>'
+        f'<div class="analysis-section-subtitle">{esc(subtitle)}</div>'
+        f'</div>'
+    )
+
+
 def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
     total = int(stats["total"])
     pos = int(stats["sentiment_counts"].get("positive", 0))
@@ -79,7 +85,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
     st.markdown(
         dedent(
             f"""
-        <div class="section-pad">
+        <div class="section-pad" id="overview">
           <div class="grid-4">
             {metric_card(t(lang, "Total Artikel", "Total Articles"), f"{total:,}".replace(",", "."), t(lang, "14 hari terakhir", "Last 14 days"))}
             {metric_card(t(lang, "Sentimen Positif", "Positive Sentiment"), f"{pos_pct}%", t(lang, "Porsi artikel positif", "Share of positive articles"), "positive")}
@@ -96,6 +102,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
         dedent(
             f"""
         <div class="section-pad section-tight">
+          {analysis_section(t(lang, "Apa yang Terjadi", "What is Happening"), t(lang, "Sentimen menunjukkan arah umum percakapan hari ini", "Sentiment shows the overall direction of today's conversation"))}
           <div class="grid-2-1">
             <div class="panel">
               <div class="card-title">{esc(t(lang, "Distribusi Sentimen", "Sentiment Distribution"))}</div>
@@ -107,7 +114,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
               </div>
             </div>
             <div class="panel">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                 <div class="card-title" style="margin-bottom:0">{esc(t(lang, f"Tren Sentimen {dr_map(lang, dr)}", f"{dr_map(lang, dr)} Sentiment Trend"))}</div>
                 <div style="display:flex;align-items:center;gap:14px">
                   <div class="legend-item"><span class="legend-swatch" style="width:18px;height:2px;background:#2d7a3a;border-radius:1px"></span>{esc(t(lang, "Positif", "Positive"))}</div>
@@ -128,6 +135,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
         dedent(
             f"""
         <div class="section-pad section-tight">
+          {analysis_section(t(lang, "Apa yang Dibicarakan", "What People Talk About"), t(lang, "Kata kunci dan kategori menjelaskan tema utama di balik sentimen", "Keywords and categories explain the main themes behind the sentiment"))}
           <div class="grid-2">
             <div class="panel">
               <div class="card-title" style="margin-bottom:2px">{esc(t(lang, "Kata Kunci Dominan", "Dominant Keywords"))}</div>
@@ -143,65 +151,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
             </div>
             <div class="panel">
               <div class="card-title">{esc(t(lang, "Distribusi per Kategori", "Distribution by Category"))}</div>
-              <div style="height:210px">{mk_category_chart(stats["categories"], lang)}</div>
-              <div class="subtle-rule">
-                <div class="legend-row">
-                  <div class="legend-item"><span class="legend-swatch" style="width:14px;height:7px;background:#2d7a3a;border-radius:1px"></span>{esc(t(lang, "Positif", "Positive"))}</div>
-                  <div class="legend-item"><span class="legend-swatch" style="width:14px;height:7px;background:#cc2200;border-radius:1px"></span>{esc(t(lang, "Negatif", "Negative"))}</div>
-                  <div class="legend-item"><span class="legend-swatch" style="width:14px;height:7px;background:#b09580;border-radius:1px"></span>{esc(t(lang, "Netral", "Neutral"))}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        """
-        ),
-        unsafe_allow_html=True,
-    )
-
-
-def render_sentiment(stats: dict[str, object], lang: str) -> None:
-    st.markdown(
-        dedent(
-            f"""
-        <div class="section-pad">
-          <div class="grid-2-1" style="grid-template-columns:280px minmax(0,1fr)">
-            <div class="panel">
-              <div class="card-title">{esc(t(lang, "Confidence Sentimen", "Sentiment Confidence"))}</div>
-              <div class="gauge-wrap" style="height:130px">{mk_gauge(float(stats["avg_conf"]))}</div>
-              <div class="subtle-rule" style="text-align:center;font-size:11px;color:#786f62">{esc(t(lang, "Rata-rata skor confidence Gemini AI", "Average Gemini AI confidence score"))}</div>
-            </div>
-            <div class="panel">
-              <div class="card-title">{esc(t(lang, "Rincian Sentimen", "Sentiment Breakdown"))}</div>
-              <div style="margin-bottom:14px">
-                <div class="bar-caption"><strong class="metric-positive">{esc(t(lang, "Positif", "Positive"))}</strong><span class="muted">{int(stats["sentiment_counts"].get("positive", 0))} · {round((int(stats["sentiment_counts"].get("positive", 0)) / max(1, int(stats["total"]))) * 100)}%</span></div>
-                <div class="bar-track"><div class="bar-fill" style="width:{round((int(stats["sentiment_counts"].get("positive", 0)) / max(1, int(stats["total"]))) * 100)}%;background:#2d7a3a"></div></div>
-              </div>
-              <div style="margin-bottom:14px">
-                <div class="bar-caption"><strong class="metric-negative">{esc(t(lang, "Negatif", "Negative"))}</strong><span class="muted">{int(stats["sentiment_counts"].get("negative", 0))} · {round((int(stats["sentiment_counts"].get("negative", 0)) / max(1, int(stats["total"]))) * 100)}%</span></div>
-                <div class="bar-track"><div class="bar-fill" style="width:{round((int(stats["sentiment_counts"].get("negative", 0)) / max(1, int(stats["total"]))) * 100)}%;background:#cc2200"></div></div>
-              </div>
-              <div>
-                <div class="bar-caption"><strong style="color:#b09580">{esc(t(lang, "Netral", "Neutral"))}</strong><span class="muted">{int(stats["sentiment_counts"].get("neutral", 0))} · {round((int(stats["sentiment_counts"].get("neutral", 0)) / max(1, int(stats["total"]))) * 100)}%</span></div>
-                <div class="bar-track"><div class="bar-fill" style="width:{round((int(stats["sentiment_counts"].get("neutral", 0)) / max(1, int(stats["total"]))) * 100)}%;background:#b09580"></div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        """
-        ),
-        unsafe_allow_html=True,
-    )
-
-
-def render_category(stats: dict[str, object], lang: str) -> None:
-    st.markdown(
-        dedent(
-            f"""
-        <div class="section-pad">
-          <div class="grid-2">
-            <div class="panel">
-              <div class="card-title">{esc(t(lang, "Distribusi per Kategori", "Distribution by Category"))}</div>
+              <div class="card-subtitle">{esc(t(lang, "Komposisi kategori yang paling banyak muncul", "Category composition by volume"))}</div>
               <div style="height:255px">{mk_category_chart(stats["categories"], lang)}</div>
               <div class="subtle-rule">
                 <div class="legend-row">
@@ -211,11 +161,6 @@ def render_category(stats: dict[str, object], lang: str) -> None:
                 </div>
               </div>
             </div>
-            <div class="panel">
-              <div class="card-title">{esc(t(lang, "Heatmap Kategori × Sentimen", "Category × Sentiment Heatmap"))}</div>
-              <div class="card-subtitle">{esc(t(lang, "Jumlah artikel per kombinasi", "Article count per combination"))}</div>
-              <div style="height:255px">{mk_heatmap(stats["categories"], lang)}</div>
-            </div>
           </div>
         </div>
         """
@@ -223,13 +168,12 @@ def render_category(stats: dict[str, object], lang: str) -> None:
         unsafe_allow_html=True,
     )
 
-
-def render_source(stats: dict[str, object], lang: str) -> None:
     st.markdown(
         dedent(
             f"""
-        <div class="section-pad">
-          <div class="panel" style="margin-bottom:12px">
+        <div class="section-pad section-tight">
+          {analysis_section(t(lang, "Siapa yang Membentuk Narasi", "Who Shapes the Narrative"), t(lang, "Sumber menjelaskan media mana yang paling banyak berkontribusi ke percakapan", "Sources show which media contribute most to the conversation"))}
+          <div class="panel" style="margin-bottom:10px">
             <div class="card-title" style="margin-bottom:2px">{esc(t(lang, "Top Sumber Berita", "Top News Sources"))}</div>
             <div class="card-subtitle">{esc(t(lang, "Distribusi sentimen lintas media — n = total artikel, % = porsi positif", "Sentiment distribution across media — n = total articles, % = positive share"))}</div>
             <div style="height:265px">{mk_source_chart(stats["sources"])}</div>
@@ -241,23 +185,10 @@ def render_source(stats: dict[str, object], lang: str) -> None:
               </div>
             </div>
           </div>
-          <div class="grid-4-small">
-            {"".join(render_source_card(row, lang) for row in stats["sources"][:4])}
-          </div>
         </div>
         """
         ),
         unsafe_allow_html=True,
-    )
-
-
-def render_source_card(row: dict[str, object], lang: str) -> str:
-    return (
-        f'<div class="panel compact">'
-        f'<div class="card-subtitle" style="margin-bottom:6px">{esc(row["name"])}</div>'
-        f'<div class="kpi-value">{int(row["n"])}</div>'
-        f'<div class="kpi-note" style="color:#2d7a3a;font-weight:500">{int(row["pp"])}% {esc(t(lang, "Positif", "Positive"))}</div>'
-        f'</div>'
     )
 
 
@@ -311,7 +242,7 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
             f"""
         <div class="section-pad">
           <div class="panel">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:12px">
               <div>
                 <div class="card-title" style="margin-bottom:1px">{esc(t(lang, "Artikel Berita Terkini", "Latest News Articles"))}</div>
                 <div class="card-subtitle" style="margin-bottom:0">{esc(t(lang, "Diproses oleh pipeline kabar.io", "Processed by the kabar.io pipeline"))}</div>
@@ -328,14 +259,8 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
 
 
 def render_page(nav: str, lang: str, stats: dict[str, object], dr: str, table_df: pd.DataFrame) -> None:
-    if nav == "overview":
+    if nav == "analysis":
         render_overview(stats, lang, dr)
-    elif nav == "sentiment":
-        render_sentiment(stats, lang)
-    elif nav == "category":
-        render_category(stats, lang)
-    elif nav == "source":
-        render_source(stats, lang)
     else:
         render_news(table_df, lang)
 
