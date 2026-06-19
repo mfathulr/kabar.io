@@ -7,7 +7,7 @@
 - Ambil berita dari beberapa kategori NewsData.io
 - Pagination lewat `nextPage`
 - Clean data dengan `pandas`
-- Analisis sentimen dengan Gemini `gemini-2.5-flash`, fallback ke `gemini-2.5-flash-lite-preview-09-2025`
+- Analisis sentimen dengan Gemini `gemini-2.5-flash`, fallback ke dua model cadangan
 - Simpan hasil ke Neon Postgres, fallback ke CSV jika DB tidak tersedia
 - Deduplication berdasarkan `article_id`
 
@@ -70,7 +70,10 @@ Pakai `.env` di root project untuk secret:
 ```env
 NEWSDATA_API_KEY=your_key_here
 GEMINI_API_KEYS=key1,key2,key3
-GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite-preview-09-2025
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL_FALLBACK=gemini-2.5-flash-lite-preview-09-2025
+GEMINI_MODEL_FALLBACK_2=gemini-3.1-flash-lite
+GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite-preview-09-2025,gemini-3.1-flash-lite
 DATABASE_URL=postgresql://user:password@ep-xxxx-pooler.us-east-2.aws.neon.tech/dbname?sslmode=require&channel_binding=require
 ```
 
@@ -80,7 +83,8 @@ Catatan:
 
 - `NEWSDATA_API_KEY` wajib untuk fetch berita
 - `GEMINI_API_KEYS` dipakai untuk sentiment analysis
-- `GEMINI_MODELS` opsional untuk mengatur urutan fallback model Gemini
+- `GEMINI_MODELS` adalah override paling kuat untuk urutan fallback model Gemini
+- `GEMINI_MODEL`, `GEMINI_MODEL_FALLBACK`, dan `GEMINI_MODEL_FALLBACK_2` dipakai kalau kamu ingin override satu-satu
 - `DATABASE_URL` dipakai untuk Neon Postgres, sebaiknya pakai pooled connection string dari Neon Console
 - Tidak ada hardcoded key di source code
 
@@ -182,9 +186,12 @@ newsdata:
 
 gemini:
   model: gemini-2.5-flash
+  model_fallback: gemini-2.5-flash-lite-preview-09-2025
+  model_fallback_2: gemini-3.1-flash-lite
   models:
     - gemini-2.5-flash
     - gemini-2.5-flash-lite-preview-09-2025
+    - gemini-3.1-flash-lite
 
 output:
   csv: data/news.csv
@@ -437,7 +444,7 @@ Di Neon, status sentiment juga tersedia:
 - `sentiment_attempts`
 - `sentiment_processed_at`
 - `sentiment_last_error`
-- `sentiment` diproses dengan fallback model: primary `gemini-2.5-flash`, lalu `gemini-2.5-flash-lite-preview-09-2025`
+- `sentiment` diproses dengan fallback model: primary `gemini-2.5-flash`, lalu `gemini-2.5-flash-lite-preview-09-2025`, lalu `gemini-3.1-flash-lite`
 
 ## Catatan Perilaku
 
@@ -445,7 +452,7 @@ Di Neon, status sentiment juga tersedia:
 - Kalau API mengembalikan `429`, artikel pada kategori itu akan dilewati
 - Sentiment diproses per batch 10 baris dengan jeda 1 detik antar batch
 - Neon dan CSV sama-sama dedupe berdasarkan `article_id`
-- Gemini API free tier dipakai lewat `gemini-2.5-flash` dengan fallback model `gemini-2.5-flash-lite-preview-09-2025`
+- Gemini API free tier dipakai lewat `gemini-2.5-flash` dengan dua fallback model cadangan
 - Kalau ada beberapa key di `GEMINI_API_KEYS`, sistem akan mencoba key berikutnya saat key sebelumnya kena limit atau error jaringan
 - Kalau model utama kena limit atau error, worker akan coba model fallback berikutnya sebelum menandai baris tetap `pending`
 - `config/settings.yml` jadi source of truth untuk category, country, language, page size, model, dan fallback CSV

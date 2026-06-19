@@ -98,7 +98,13 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     },
     "gemini": {
         "model": "gemini-2.5-flash",
-        "models": ["gemini-2.5-flash", "gemini-2.5-flash-lite-preview-09-2025"],
+        "model_fallback": "gemini-2.5-flash-lite-preview-09-2025",
+        "model_fallback_2": "gemini-3.1-flash-lite",
+        "models": [
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite-preview-09-2025",
+            "gemini-3.1-flash-lite",
+        ],
     },
     "output": {"csv": "data/news.csv"},
 }
@@ -129,6 +135,11 @@ def _load_settings() -> dict[str, Any]:
 
 def _parse_csv_list(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    return [value for value in values if value and not (value in seen or seen.add(value))]
 
 
 SETTINGS = _load_settings()
@@ -176,20 +187,22 @@ NEWSDATA_CREDIT_BUFFER = int(
 
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY", "")
 GEMINI_API_KEYS = os.getenv("GEMINI_API_KEYS", "")
-_GEMINI_MODELS_RAW = os.getenv("GEMINI_MODELS", "").strip()
-if _GEMINI_MODELS_RAW:
-    GEMINI_MODELS = [model.strip() for model in _GEMINI_MODELS_RAW.split(",") if model.strip()]
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", str(GEMINI_SETTINGS.get("model", DEFAULT_SETTINGS["gemini"]["model"])))
+GEMINI_MODEL_FALLBACK = os.getenv(
+    "GEMINI_MODEL_FALLBACK",
+    str(GEMINI_SETTINGS.get("model_fallback", DEFAULT_SETTINGS["gemini"]["model_fallback"])),
+)
+GEMINI_MODEL_FALLBACK_2 = os.getenv(
+    "GEMINI_MODEL_FALLBACK_2",
+    str(GEMINI_SETTINGS.get("model_fallback_2", DEFAULT_SETTINGS["gemini"]["model_fallback_2"])),
+)
+raw_gemini_models = os.getenv("GEMINI_MODELS", "").strip()
+if raw_gemini_models:
+    GEMINI_MODELS = _dedupe_preserve_order(_parse_csv_list(raw_gemini_models))
 else:
     raw_models = GEMINI_SETTINGS.get("models")
     if isinstance(raw_models, list) and raw_models:
-        GEMINI_MODELS = [str(model).strip() for model in raw_models if str(model).strip()]
+        GEMINI_MODELS = _dedupe_preserve_order([str(model).strip() for model in raw_models if str(model).strip()])
     else:
-        GEMINI_MODELS = []
-
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", str(GEMINI_SETTINGS.get("model", DEFAULT_SETTINGS["gemini"]["model"])))
-if not GEMINI_MODELS:
-    GEMINI_MODELS = [GEMINI_MODEL]
-else:
-    seen: set[str] = set()
-    GEMINI_MODELS = [model for model in GEMINI_MODELS if not (model in seen or seen.add(model))]
+        GEMINI_MODELS = _dedupe_preserve_order([GEMINI_MODEL, GEMINI_MODEL_FALLBACK, GEMINI_MODEL_FALLBACK_2])
 OUTPUT_CSV = str(OUTPUT_SETTINGS.get("csv", DEFAULT_SETTINGS["output"]["csv"]))

@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 import requests
 
-from config import GEMINI_API_KEYS, GEMINI_MODEL, GEMINI_MODELS
+from config import GEMINI_API_KEYS, GEMINI_MODELS
 
 
 SYSTEM_PROMPT = (
@@ -21,7 +21,6 @@ SYSTEM_PROMPT = (
 )
 BATCH_SIZE = 10
 GEMINI_KEYS_ENV = "GEMINI_API_KEYS"
-GEMINI_MODELS_ENV = "GEMINI_MODELS"
 
 
 def _safe_parse_json(content: str) -> dict[str, Any]:
@@ -71,14 +70,9 @@ def _load_gemini_keys() -> list[str]:
 
 def _load_gemini_models() -> list[str]:
     """Load the model fallback order from env/config."""
-    raw_models = os.getenv(GEMINI_MODELS_ENV, "").strip()
-    if raw_models:
-        models = [model.strip() for model in raw_models.split(",") if model.strip()]
-        if models:
-            return models
     if GEMINI_MODELS:
-        return list(dict.fromkeys([model.strip() for model in GEMINI_MODELS if model.strip()]))
-    return [GEMINI_MODEL]
+        return list(GEMINI_MODELS)
+    return []
 
 
 def classify_sentiment(title: str, description: str) -> tuple[str, float, str, bool, str]:

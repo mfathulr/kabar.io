@@ -17,7 +17,6 @@
 # - tourism
 # - world
 # - other
-# - top
 # Catatan: `breaking` bukan category filter di config ini; kalau perlu, pakai sebagai label konten,
 # bukan sebagai nilai `newsdata.categories`.
 # Use `newsdata.active_category_set` for the default mix.
@@ -132,12 +131,15 @@ newsdata:
 
 gemini:
   model: gemini-2.5-flash
+  model_fallback: gemini-2.5-flash-lite-preview-09-2025
+  model_fallback_2: gemini-3.1-flash-lite
   # Free-tier fallback order for sentiment analysis.
-  # Primary model stays on Gemini 2.5 Flash; fallback uses Flash Lite preview
-  # if the primary model is rate-limited or unavailable.
+  # Primary model stays on Gemini 2.5 Flash; fallback uses Flash Lite preview,
+  # then Gemini 3.1 Flash Lite if the earlier model is rate-limited or unavailable.
   models:
     - gemini-2.5-flash
     - gemini-2.5-flash-lite-preview-09-2025
+    - gemini-3.1-flash-lite
 
 output:
   csv: data/news.csv
