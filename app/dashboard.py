@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -41,6 +42,17 @@ def localize_source_note(note: str, lang: str) -> str:
         return note
     localized = [translations.get(part, (part, part))[0 if lang == "id" else 1] for part in parts]
     return "; ".join(localized)
+
+
+def build_source_options(df) -> list[str]:
+    if df.empty:
+        return ["all"]
+    source_series = (
+        df["source_id"].fillna("").replace("", pd.NA).fillna(df["domain"].fillna("unknown")).fillna("unknown").astype(str).str.lower()
+    )
+    options = ["all"]
+    options.extend(sorted({value for value in source_series.tolist() if value}))
+    return options
 
 
 def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None) -> tuple[str, str, bool]:
@@ -108,72 +120,125 @@ def refresh_strip(refresh_at: str | None) -> None:
             st.rerun()
 
 
-def main_filters() -> tuple[str, str, str, str]:
+def main_filters(show_search: bool, source_options: list[str]) -> tuple[str, str, str, str, str]:
     cols = st.columns(4, gap="small")
     dr_options = ["7d", "14d", "30d", "90d"]
     sent_options = ["all", "positive", "negative", "neutral"]
     category_options = ["all", "breaking", "top", "business", "education", "politics", "sports", "technology", "world", "health", "entertainment", "domestic", "crime", "environment", "science", "food", "lifestyle", "tourism", "other"]
     lang = st.session_state.lang
 
-    with cols[0]:
-        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Rentang Waktu", "Time Range"))}</div>', unsafe_allow_html=True)
-        dr = st.selectbox("", dr_options, index=dr_options.index(st.session_state.dr), label_visibility="collapsed", key="main_dr")
-    with cols[1]:
-        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sentimen", "Sentiment"))}</div>', unsafe_allow_html=True)
-        sent_f = st.selectbox(
-            "",
-            sent_options,
-            index=sent_options.index(st.session_state.sent_f),
-            label_visibility="collapsed",
-            key="main_sentiment",
-            format_func=lambda value: {
-                "all": t(lang, "Semua", "All"),
-                "positive": t(lang, "Positif", "Positive"),
-                "negative": t(lang, "Negatif", "Negative"),
-                "neutral": t(lang, "Netral", "Neutral"),
-            }[value],
-        )
-    with cols[2]:
-        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kategori", "Category"))}</div>', unsafe_allow_html=True)
-        cat_f = st.selectbox(
-            "",
-            category_options,
-            index=category_options.index(st.session_state.cat_f),
-            label_visibility="collapsed",
-            key="main_category",
-            format_func=lambda value: {
-                "all": t(lang, "Semua", "All"),
-                "breaking": t(lang, "Berita Terkini", "Breaking News"),
-                "top": t(lang, "Teratas", "Top"),
-                "business": t(lang, "Bisnis", "Business"),
-                "education": t(lang, "Pendidikan", "Education"),
-                "politics": t(lang, "Politik", "Politics"),
-                "sports": t(lang, "Olahraga", "Sports"),
-                "technology": t(lang, "Teknologi", "Technology"),
-                "world": t(lang, "Dunia", "World"),
-                "health": t(lang, "Kesehatan", "Health"),
-                "entertainment": t(lang, "Hiburan", "Entertainment"),
-                "domestic": t(lang, "Domestik", "Domestic"),
-                "crime": t(lang, "Kriminal", "Crime"),
-                "environment": t(lang, "Lingkungan", "Environment"),
-                "science": t(lang, "Sains", "Science"),
-                "food": t(lang, "Kuliner", "Food"),
-                "lifestyle": t(lang, "Gaya Hidup", "Lifestyle"),
-                "tourism": t(lang, "Pariwisata", "Tourism"),
-                "other": t(lang, "Lainnya", "Other"),
-            }[value],
-        )
-    with cols[3]:
-        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Pencarian", "Search"))}</div>', unsafe_allow_html=True)
-        search = st.text_input(
-            "",
-            value=st.session_state.search,
-            placeholder=t(lang, "Cari judul atau sumber...", "Search by title or source..."),
-            label_visibility="collapsed",
-            key="main_search",
-        )
+    category_fmt = lambda value: {
+        "all": t(lang, "Semua", "All"),
+        "breaking": t(lang, "Berita Terkini", "Breaking News"),
+        "top": t(lang, "Teratas", "Top"),
+        "business": t(lang, "Bisnis", "Business"),
+        "education": t(lang, "Pendidikan", "Education"),
+        "politics": t(lang, "Politik", "Politics"),
+        "sports": t(lang, "Olahraga", "Sports"),
+        "technology": t(lang, "Teknologi", "Technology"),
+        "world": t(lang, "Dunia", "World"),
+        "health": t(lang, "Kesehatan", "Health"),
+        "entertainment": t(lang, "Hiburan", "Entertainment"),
+        "domestic": t(lang, "Domestik", "Domestic"),
+        "crime": t(lang, "Kriminal", "Crime"),
+        "environment": t(lang, "Lingkungan", "Environment"),
+        "science": t(lang, "Sains", "Science"),
+        "food": t(lang, "Kuliner", "Food"),
+        "lifestyle": t(lang, "Gaya Hidup", "Lifestyle"),
+        "tourism": t(lang, "Pariwisata", "Tourism"),
+        "other": t(lang, "Lainnya", "Other"),
+    }[value]
 
-    return dr, "all" if sent_f == "all" else sent_f, "all" if cat_f == "all" else cat_f, search
+    source_fmt = lambda value: t(lang, "Semua", "All") if value == "all" else value
+
+    if show_search:
+        with cols[0]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sumber", "Source"))}</div>', unsafe_allow_html=True)
+            source_f = st.selectbox(
+                "",
+                source_options,
+                index=source_options.index(st.session_state.source_f) if st.session_state.source_f in source_options else 0,
+                label_visibility="collapsed",
+                key="main_source",
+                format_func=source_fmt,
+            )
+        with cols[1]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kategori", "Category"))}</div>', unsafe_allow_html=True)
+            cat_f = st.selectbox(
+                "",
+                category_options,
+                index=category_options.index(st.session_state.cat_f),
+                label_visibility="collapsed",
+                key="main_category",
+                format_func=category_fmt,
+            )
+        with cols[2]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sentimen", "Sentiment"))}</div>', unsafe_allow_html=True)
+            sent_f = st.selectbox(
+                "",
+                sent_options,
+                index=sent_options.index(st.session_state.sent_f),
+                label_visibility="collapsed",
+                key="main_sentiment",
+                format_func=lambda value: {
+                    "all": t(lang, "Semua", "All"),
+                    "positive": t(lang, "Positif", "Positive"),
+                    "negative": t(lang, "Negatif", "Negative"),
+                    "neutral": t(lang, "Netral", "Neutral"),
+                }[value],
+            )
+        with cols[3]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Pencarian", "Search"))}</div>', unsafe_allow_html=True)
+            search = st.text_input(
+                "",
+                value=st.session_state.search,
+                placeholder=t(lang, "Cari judul atau sumber...", "Search by title or source..."),
+                label_visibility="collapsed",
+                key="main_search",
+            )
+        dr = st.session_state.dr
+    else:
+        with cols[0]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Rentang Waktu", "Time Range"))}</div>', unsafe_allow_html=True)
+            dr = st.selectbox("", dr_options, index=dr_options.index(st.session_state.dr), label_visibility="collapsed", key="main_dr")
+        with cols[1]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sumber", "Source"))}</div>', unsafe_allow_html=True)
+            source_f = st.selectbox(
+                "",
+                source_options,
+                index=source_options.index(st.session_state.source_f) if st.session_state.source_f in source_options else 0,
+                label_visibility="collapsed",
+                key="main_source",
+                format_func=source_fmt,
+            )
+        with cols[2]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kategori", "Category"))}</div>', unsafe_allow_html=True)
+            cat_f = st.selectbox(
+                "",
+                category_options,
+                index=category_options.index(st.session_state.cat_f),
+                label_visibility="collapsed",
+                key="main_category",
+                format_func=category_fmt,
+            )
+        with cols[3]:
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sentimen", "Sentiment"))}</div>', unsafe_allow_html=True)
+            sent_f = st.selectbox(
+                "",
+                sent_options,
+                index=sent_options.index(st.session_state.sent_f),
+                label_visibility="collapsed",
+                key="main_sentiment",
+                format_func=lambda value: {
+                    "all": t(lang, "Semua", "All"),
+                    "positive": t(lang, "Positif", "Positive"),
+                    "negative": t(lang, "Negatif", "Negative"),
+                    "neutral": t(lang, "Netral", "Neutral"),
+                }[value],
+            )
+        search = st.session_state.search
+
+    return dr, "all" if sent_f == "all" else sent_f, "all" if cat_f == "all" else cat_f, "all" if source_f == "all" else source_f, search
 
 
 def recover_sidebar() -> None:
@@ -226,6 +291,7 @@ def main() -> None:
     st.session_state.setdefault("dark", False)
     st.session_state.setdefault("sent_f", "all")
     st.session_state.setdefault("cat_f", "all")
+    st.session_state.setdefault("source_f", "all")
     st.session_state.setdefault("dr", "14d")
     st.session_state.setdefault("search", "")
 
@@ -236,20 +302,23 @@ def main() -> None:
 
     raw_df, source_name, source_note, refresh_at = load_dashboard_snapshot()
     st.session_state.latest_refresh_at = refresh_at
+    source_options = build_source_options(raw_df)
 
     nav, lang, dark = sidebar_controls(source_name, source_note, refresh_at)
     topbar(nav, lang)
     refresh_strip(refresh_at)
     st.markdown('<div class="topbar-divider"></div>', unsafe_allow_html=True)
-    dr, sent_f, cat_f, search = main_filters()
+    dr, sent_f, cat_f, source_f, search = main_filters(nav == "news", source_options)
     recover_sidebar()
 
     st.session_state.nav = nav
     st.session_state.lang = lang
     st.session_state.sent_f = sent_f
     st.session_state.cat_f = cat_f
+    st.session_state.source_f = source_f
     st.session_state.dr = dr
-    st.session_state.search = search
+    if nav == "news":
+        st.session_state.search = search
     st.session_state.dark = dark
 
     if dark:
@@ -268,7 +337,7 @@ def main() -> None:
             unsafe_allow_html=True,
         )
 
-    chart_df, table_df = filter_articles(raw_df, dr, sent_f, cat_f, search)
+    chart_df, table_df = filter_articles(raw_df, dr, source_f, sent_f, cat_f, search if nav == "news" else "")
     stats = build_stats(chart_df, lang)
     render_page(nav, lang, stats, dr, table_df)
 

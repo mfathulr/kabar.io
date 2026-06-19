@@ -341,6 +341,7 @@ def build_word_cloud_rows(df: pd.DataFrame) -> list[dict[str, object]]:
 def filter_articles(
     df: pd.DataFrame,
     dr: str,
+    source_filter: str,
     sentiment_filter: str,
     category_filter: str,
     search: str,
@@ -355,6 +356,9 @@ def filter_articles(
     days = {"7d": 7, "14d": 14, "30d": 30, "90d": 90}.get(dr, 14)
     cutoff = now - pd.Timedelta(days=days)
     chart_df = chart_df[chart_df[date_col].isna() | (chart_df[date_col] >= cutoff)]
+    if source_filter != "all":
+        source_series = chart_df["source_id"].fillna("").replace("", pd.NA).fillna(chart_df["domain"].fillna("unknown")).fillna("unknown").astype(str).str.lower()
+        chart_df = chart_df[source_series == source_filter]
     if sentiment_filter != "all":
         chart_df = chart_df[chart_df["sentiment"].str.lower() == sentiment_filter]
     if category_filter != "all":
