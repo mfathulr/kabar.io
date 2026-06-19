@@ -96,6 +96,10 @@ Contoh isi:
 
 ```yaml
 # Available category sets:
+# - core_daily
+# - tail_a
+# - tail_b
+# - tail_c
 # - balanced
 # - broader
 # - local
@@ -105,8 +109,29 @@ newsdata:
   country: id
   language: id
   page_size: 10
-  active_category_set: balanced
+  active_category_set: core_daily
   category_sets:
+    core_daily:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+    tail_a:
+      - entertainment
+      - sports
+      - domestic
+      - education
+    tail_b:
+      - crime
+      - environment
+      - food
+      - lifestyle
+    tail_c:
+      - science
+      - tourism
+      - top
+      - other
     balanced:
       - politics
       - business
@@ -134,14 +159,26 @@ newsdata:
       - world
       - politics
   categories:
-    - politics
     - business
-    - technology
+    - crime
+    - domestic
+    - education
+    - entertainment
+    - environment
+    - food
     - health
+    - lifestyle
+    - politics
+    - science
+    - sports
+    - technology
+    - top
+    - tourism
     - world
+    - other
   credit_budget_per_day: 200
   credit_buffer: 30
-  max_pages_per_category: 4
+  max_pages_per_category: 2
 
 gemini:
   model: gemini-2.5-flash
@@ -153,43 +190,59 @@ output:
   csv: data/news.csv
 ```
 
-Kalau mau pakai kategori tertentu saja, cukup ganti `active_category_set` atau edit `categories` secara manual.
+Kalau mau pakai kategori tertentu saja, cukup ganti `active_category_set`, set `NEWSDATA_CATEGORIES`, atau edit `categories` secara manual.
 Kalau kamu mau cek daftar kategori resmi NewsData.io yang lebih lengkap, rujuk dokumentasi resminya karena project ini sekarang memakai preset yang bisa diubah dari config.
 
 ### Strategi Kombinasi Kategori
 
-Default yang saya sarankan untuk free tier adalah `balanced`:
+Untuk free tier, pola terbaik sekarang adalah:
 
-- `politics`
-- `business`
-- `technology`
-- `health`
-- `world`
+- `core_daily` dipakai setiap hari
+- `tail_a`, `tail_b`, dan `tail_c` dirotasi bergiliran
 
-Kenapa ini aman:
+Komposisinya:
 
-- cukup beragam untuk feed harian
-- masih relevan untuk berita Indonesia
-- mudah dikembangkan ke `broader` kalau kredit masih longgar
+- `core_daily`
+  - `politics`
+  - `business`
+  - `technology`
+  - `health`
+  - `world`
+- `tail_a`
+  - `entertainment`
+  - `sports`
+  - `domestic`
+  - `education`
+- `tail_b`
+  - `crime`
+  - `environment`
+  - `food`
+  - `lifestyle`
+- `tail_c`
+  - `science`
+  - `tourism`
+  - `top`
+  - `other`
+
+Kenapa ini lebih aman:
+
+- core tetap ter-update setiap hari
+- tail kategori tidak dibaca setiap hari, jadi credit tidak cepat habis
+- coverage seluruh category bisa selesai dalam rotasi 3 hari
 
 Guard yang dipakai pipeline:
 
 - `credit_budget_per_day: 200`
 - `credit_buffer: 30`
-- `max_pages_per_category: 4`
+- `max_pages_per_category: 2`
 
-Artinya pipeline akan berhenti lebih awal supaya ada sisa sekitar 30 credit sebagai buffer harian, jadi tidak habis mentok di limit.
-
-Dengan `page_size: 10`, estimasi untuk preset `balanced` sekarang jadi:
-
-- `5 kategori x 4 page x 10 artikel = 200 artikel` per run maksimal
-- konsumsi kredit sekitar `5 kategori x 4 page x 1 credit = 20 credit`
-- sisa buffer harian tetap besar di bawah limit `200/day`
+Artinya pipeline akan berhenti lebih awal supaya ada sisa credit sebagai buffer harian. Dengan `page_size: 10` dan `max_pages_per_category: 2`, tiap category hanya mengambil maksimal 20 artikel per run, jadi jauh lebih ramah untuk free tier.
 
 Catatan:
 
 - Audience project ini memang Indonesia-only, jadi `language` dipaku ke `id`.
 - Runtime juga akan menahan `page_size` di maksimal `10` supaya tetap kompatibel dengan free tier.
+- `scripts/run_fetch_news.sh` otomatis memilih batch kategori berdasarkan hari, dan tetap bisa dioverride via `NEWSDATA_CATEGORIES`.
 
 ## Referensi Kategori NewsData
 
@@ -232,6 +285,15 @@ Alur:
 3. `save_with_fallback(df, OUTPUT_CSV)`
 
 Fetch dilakukan round-robin per kategori, bukan habiskan satu kategori sampai selesai dulu. Jadi hasilnya lebih campur dan lebih enak buat feed.
+
+Batch harian yang dipakai wrapper:
+
+- Senin dan Kamis: `core_daily + tail_a`
+- Selasa dan Jumat: `core_daily + tail_b`
+- Rabu dan Sabtu: `core_daily + tail_c`
+- Minggu: `core_daily`
+
+Kalau mau paksa kategori tertentu, set env `NEWSDATA_CATEGORIES` sebelum menjalankan script.
 
 ### Sentiment Worker
 
@@ -291,13 +353,20 @@ Rekomendasi cron:
 
 ```cron
 CRON_TZ=Asia/Jakarta
-0 6 * * * /home/devuser/projects/kabar.io/scripts/run_fetch_news.sh
+0 6 * * 1,4 /home/devuser/projects/kabar.io/scripts/run_fetch_news.sh
+0 6 * * 2,5 /home/devuser/projects/kabar.io/scripts/run_fetch_news.sh
+0 6 * * 3,6 /home/devuser/projects/kabar.io/scripts/run_fetch_news.sh
+0 6 * * 0 /home/devuser/projects/kabar.io/scripts/run_fetch_news.sh
 */10 * * * * /home/devuser/projects/kabar.io/scripts/run_sentiment_worker.sh
 ```
 
 Arti jadwalnya:
 
-- `run_fetch_news.sh` jalan sekali sehari jam 06:00 WIB
+- `run_fetch_news.sh` jalan jam 06:00 WIB dengan rotasi kategori:
+  - Senin dan Kamis: core + tail A
+  - Selasa dan Jumat: core + tail B
+  - Rabu dan Sabtu: core + tail C
+  - Minggu: core saja
 - `run_sentiment_worker.sh` jalan setiap 10 menit
 - worker sentiment mengambil maksimal 5 artikel `pending` paling lama
 - urutan pemrosesan: `published_at_wib ASC`, lalu `fetched_at ASC`

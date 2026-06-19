@@ -17,10 +17,11 @@
 # - tourism
 # - world
 # - other
+# - top
 # Catatan: `breaking` bukan category filter di config ini; kalau perlu, pakai sebagai label konten,
 # bukan sebagai nilai `newsdata.categories`.
-# Use `newsdata.active_category_set` to switch the active mix.
-# `newsdata.categories` stays as a legacy override if you want to set the list manually.
+# Use `newsdata.active_category_set` for the default mix.
+# Use `NEWSDATA_CATEGORIES` or `NEWSDATA_ACTIVE_CATEGORY_SET` to override per run when scheduling rotations.
 # Audience target is Indonesia-only, so `language` is pinned to `id`.
 # `page_size` should stay at or below 10 for the free tier.
 newsdata:
@@ -28,8 +29,59 @@ newsdata:
   country: id
   language: id
   page_size: 10
-  active_category_set: balanced
+  active_category_set: core_daily
   category_sets:
+    core_daily:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+    tail_a:
+      - entertainment
+      - sports
+      - domestic
+      - education
+    tail_b:
+      - crime
+      - environment
+      - food
+      - lifestyle
+    tail_c:
+      - science
+      - tourism
+      - top
+      - other
+    core_daily_plus_tail_a:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+      - entertainment
+      - sports
+      - domestic
+      - education
+    core_daily_plus_tail_b:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+      - crime
+      - environment
+      - food
+      - lifestyle
+    core_daily_plus_tail_c:
+      - politics
+      - business
+      - technology
+      - health
+      - world
+      - science
+      - tourism
+      - top
+      - other
     balanced:
       - politics
       - business
@@ -57,14 +109,26 @@ newsdata:
       - world
       - politics
   categories:
-    - politics
     - business
-    - technology
+    - crime
+    - domestic
+    - education
+    - entertainment
+    - environment
+    - food
     - health
+    - lifestyle
+    - politics
+    - science
+    - sports
+    - technology
+    - top
+    - tourism
     - world
+    - other
   credit_budget_per_day: 200
   credit_buffer: 30
-  max_pages_per_category: 4
+  max_pages_per_category: 2
 
 gemini:
   model: gemini-2.5-flash

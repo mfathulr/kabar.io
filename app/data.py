@@ -47,6 +47,8 @@ CANONICAL_COLUMNS = [
 ]
 
 CATEGORY_LABELS = {
+    "breaking": ("Breaking", "Breaking"),
+    "top": ("Top", "Top"),
     "politics": ("Politik", "Politics"),
     "business": ("Bisnis", "Business"),
     "technology": ("Teknologi", "Technology"),
