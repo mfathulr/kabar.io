@@ -21,7 +21,6 @@ try:
 except Exception:  # pragma: no cover - optional at runtime
     psycopg = None  # type: ignore[assignment]
 CSV_PATH = ROOT_DIR / "data" / "news.csv"
-DASHBOARD_CACHE_TTL_SECONDS = 300
 
 Nav = Literal["overview", "sentiment", "category", "source", "news"]
 CANONICAL_COLUMNS = [
@@ -226,6 +225,7 @@ def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+@st.cache_data(show_spinner=False)
 def load_neon_articles() -> tuple[pd.DataFrame, str]:
     database_url = os.getenv("DATABASE_URL", "").strip()
     if not database_url or psycopg is None:
@@ -256,17 +256,21 @@ def load_neon_articles() -> tuple[pd.DataFrame, str]:
         ORDER BY COALESCE(published_at_wib, published_at, fetched_at) DESC NULLS LAST, article_id DESC
     """
 
-    with psycopg.connect(database_url) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            columns = [desc[0] for desc in cur.description or []]
+    try:
+        with psycopg.connect(database_url) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                rows = cur.fetchall()
+                columns = [desc[0] for desc in cur.description or []]
+    except Exception as exc:
+        return pd.DataFrame(), f"Neon/Postgres unavailable: {exc}"
 
     if not rows:
         return pd.DataFrame(columns=CANONICAL_COLUMNS), "Neon/Postgres empty"
     return normalize_dataframe(pd.DataFrame.from_records(rows, columns=columns)), "Neon/Postgres"
 
 
+@st.cache_data(show_spinner=False)
 def load_csv_articles() -> tuple[pd.DataFrame, str]:
     if not CSV_PATH.exists():
         return pd.DataFrame(columns=CANONICAL_COLUMNS), "data/news.csv missing"
@@ -283,17 +287,33 @@ def load_dashboard_data() -> tuple[pd.DataFrame, str, str]:
     return pd.DataFrame(columns=CANONICAL_COLUMNS), "Demo", f"{neon_note}; {csv_note}"
 
 
-@st.cache_data(ttl=DASHBOARD_CACHE_TTL_SECONDS, show_spinner=False)
+def snapshot_refresh_at(df: pd.DataFrame) -> str:
+    if df.empty:
+        return datetime.now(timezone.utc).isoformat()
+    candidates = []
+    for col in ("sentiment_processed_at", "fetched_at", "published_at_wib", "published_at"):
+        if col in df.columns:
+            series = pd.to_datetime(df[col], errors="coerce", utc=True).dropna()
+            if not series.empty:
+                candidates.append(series.max())
+    if candidates:
+        return max(candidates).isoformat()
+    return datetime.now(timezone.utc).isoformat()
+
+
+@st.cache_data(show_spinner=False)
 def load_dashboard_snapshot() -> tuple[pd.DataFrame, str, str, str]:
-    """Load the dashboard data once and cache it briefly for Streamlit reruns."""
+    """Load the dashboard data once and keep it cached until explicitly refreshed."""
     df, source_name, source_note = load_dashboard_data()
-    refresh_at = datetime.now(timezone.utc).isoformat()
+    refresh_at = snapshot_refresh_at(df)
     return df, source_name, source_note, refresh_at
 
 
 def clear_dashboard_snapshot_cache() -> None:
-    """Clear the cached dashboard snapshot so the next rerun hits Neon again."""
+    """Clear all cached data sources so the next refresh re-queries storage."""
     load_dashboard_snapshot.clear()
+    load_neon_articles.clear()
+    load_csv_articles.clear()
 
 
 def category_label(value: object, lang: str) -> str:
