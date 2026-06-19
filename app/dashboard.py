@@ -108,10 +108,11 @@ def refresh_strip(refresh_at: str | None) -> None:
             st.rerun()
 
 
-def main_filters() -> tuple[str, str, str]:
-    cols = st.columns(3, gap="small")
+def main_filters() -> tuple[str, str, str, str]:
+    cols = st.columns(4, gap="small")
     dr_options = ["7d", "14d", "30d", "90d"]
     sent_options = ["all", "positive", "negative", "neutral"]
+    category_options = ["all", "breaking", "top", "business", "education", "politics", "sports", "technology", "world", "health", "entertainment", "domestic", "crime", "environment", "science", "food", "lifestyle", "tourism", "other"]
     lang = st.session_state.lang
 
     with cols[0]:
@@ -133,6 +134,36 @@ def main_filters() -> tuple[str, str, str]:
             }[value],
         )
     with cols[2]:
+        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kategori", "Category"))}</div>', unsafe_allow_html=True)
+        cat_f = st.selectbox(
+            "",
+            category_options,
+            index=category_options.index(st.session_state.cat_f),
+            label_visibility="collapsed",
+            key="main_category",
+            format_func=lambda value: {
+                "all": t(lang, "Semua", "All"),
+                "breaking": t(lang, "Berita Terkini", "Breaking News"),
+                "top": t(lang, "Teratas", "Top"),
+                "business": t(lang, "Bisnis", "Business"),
+                "education": t(lang, "Pendidikan", "Education"),
+                "politics": t(lang, "Politik", "Politics"),
+                "sports": t(lang, "Olahraga", "Sports"),
+                "technology": t(lang, "Teknologi", "Technology"),
+                "world": t(lang, "Dunia", "World"),
+                "health": t(lang, "Kesehatan", "Health"),
+                "entertainment": t(lang, "Hiburan", "Entertainment"),
+                "domestic": t(lang, "Domestik", "Domestic"),
+                "crime": t(lang, "Kriminal", "Crime"),
+                "environment": t(lang, "Lingkungan", "Environment"),
+                "science": t(lang, "Sains", "Science"),
+                "food": t(lang, "Kuliner", "Food"),
+                "lifestyle": t(lang, "Gaya Hidup", "Lifestyle"),
+                "tourism": t(lang, "Pariwisata", "Tourism"),
+                "other": t(lang, "Lainnya", "Other"),
+            }[value],
+        )
+    with cols[3]:
         st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Pencarian", "Search"))}</div>', unsafe_allow_html=True)
         search = st.text_input(
             "",
@@ -142,7 +173,7 @@ def main_filters() -> tuple[str, str, str]:
             key="main_search",
         )
 
-    return dr, "all" if sent_f == "all" else sent_f, search
+    return dr, "all" if sent_f == "all" else sent_f, "all" if cat_f == "all" else cat_f, search
 
 
 def recover_sidebar() -> None:
@@ -194,6 +225,7 @@ def main() -> None:
     st.session_state.setdefault("lang", "id")
     st.session_state.setdefault("dark", False)
     st.session_state.setdefault("sent_f", "all")
+    st.session_state.setdefault("cat_f", "all")
     st.session_state.setdefault("dr", "14d")
     st.session_state.setdefault("search", "")
 
@@ -209,12 +241,13 @@ def main() -> None:
     topbar(nav, lang)
     refresh_strip(refresh_at)
     st.markdown('<div class="topbar-divider"></div>', unsafe_allow_html=True)
-    dr, sent_f, search = main_filters()
+    dr, sent_f, cat_f, search = main_filters()
     recover_sidebar()
 
     st.session_state.nav = nav
     st.session_state.lang = lang
     st.session_state.sent_f = sent_f
+    st.session_state.cat_f = cat_f
     st.session_state.dr = dr
     st.session_state.search = search
     st.session_state.dark = dark
@@ -235,7 +268,7 @@ def main() -> None:
             unsafe_allow_html=True,
         )
 
-    chart_df, table_df = filter_articles(raw_df, dr, sent_f, search)
+    chart_df, table_df = filter_articles(raw_df, dr, sent_f, cat_f, search)
     stats = build_stats(chart_df, lang)
     render_page(nav, lang, stats, dr, table_df)
 

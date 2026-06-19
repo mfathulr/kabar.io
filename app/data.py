@@ -342,6 +342,7 @@ def filter_articles(
     df: pd.DataFrame,
     dr: str,
     sentiment_filter: str,
+    category_filter: str,
     search: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     if df.empty:
@@ -356,6 +357,8 @@ def filter_articles(
     chart_df = chart_df[chart_df[date_col].isna() | (chart_df[date_col] >= cutoff)]
     if sentiment_filter != "all":
         chart_df = chart_df[chart_df["sentiment"].str.lower() == sentiment_filter]
+    if category_filter != "all":
+        chart_df = chart_df[chart_df["category"].fillna("").str.lower() == category_filter]
 
     table_df = chart_df.copy()
     if search:
@@ -376,10 +379,11 @@ def filter_articles(
 
 def build_stats(df: pd.DataFrame, lang: str) -> dict[str, object]:
     total = len(df)
-    sentiment_counts = (
-        df["sentiment"].fillna("unknown").str.lower().value_counts().reindex(["positive", "negative", "neutral", "unknown"], fill_value=0).to_dict()
-    )
-    avg_conf = float(df["sentiment_confidence"].mean() or 0.0) if total else 0.0
+    sentiment_series = df["sentiment"].fillna("unknown").str.lower()
+    sentiment_counts = sentiment_series.value_counts().reindex(["positive", "negative", "neutral", "unknown"], fill_value=0).to_dict()
+    labeled_mask = sentiment_series.isin(["positive", "negative", "neutral"])
+    labeled_total = int(labeled_mask.sum())
+    avg_conf = float(df.loc[labeled_mask, "sentiment_confidence"].mean() or 0.0) if labeled_total else 0.0
 
     category_df = (
         df.assign(_cat=df["category"].fillna("other").str.lower())
@@ -437,6 +441,7 @@ def build_stats(df: pd.DataFrame, lang: str) -> dict[str, object]:
 
     return {
         "total": total,
+        "labeled_total": labeled_total,
         "sentiment_counts": sentiment_counts,
         "avg_conf": avg_conf,
         "categories": categories,

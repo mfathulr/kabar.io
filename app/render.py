@@ -75,11 +75,14 @@ def analysis_section(title: str, subtitle: str) -> str:
 
 def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
     total = int(stats["total"])
+    labeled_total = int(stats.get("labeled_total", 0))
     pos = int(stats["sentiment_counts"].get("positive", 0))
     neg = int(stats["sentiment_counts"].get("negative", 0))
     neu = int(stats["sentiment_counts"].get("neutral", 0))
-    pos_pct = round((pos / total) * 100) if total else 0
-    neg_pct = round((neg / total) * 100) if total else 0
+    labeled_pct = round((labeled_total / total) * 100) if total else 0
+    pos_pct = round((pos / labeled_total) * 100) if labeled_total else 0
+    neg_pct = round((neg / labeled_total) * 100) if labeled_total else 0
+    neu_pct = round((neu / labeled_total) * 100) if labeled_total else 0
     avg_conf = float(stats["avg_conf"])
 
     st.markdown(
@@ -87,7 +90,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
             f"""
         <div class="section-pad" id="overview">
           <div class="grid-4">
-            {metric_card(t(lang, "Total Artikel", "Total Articles"), f"{total:,}".replace(",", "."), t(lang, "14 hari terakhir", "Last 14 days"))}
+            {metric_card(t(lang, "Total Artikel", "Total Articles"), f"{total:,}".replace(",", "."), t(lang, f"{labeled_total} ({labeled_pct}%) artikel berlabel", f"{labeled_total} ({labeled_pct}%) labeled articles"))}
             {metric_card(t(lang, "Sentimen Positif", "Positive Sentiment"), f"{pos_pct}%", t(lang, "Porsi artikel positif", "Share of positive articles"), "positive")}
             {metric_card(t(lang, "Sentimen Negatif", "Negative Sentiment"), f"{neg_pct}%", t(lang, "Porsi artikel negatif", "Share of negative articles"), "negative")}
             {metric_card(t(lang, "Rata-rata keyakinan", "Avg. Confidence"), f"{round(avg_conf * 100)}%", t(lang, "Skor model Gemini", "Gemini model score"))}
@@ -110,7 +113,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
               <div class="subtle-rule">
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#2d7a3a"></span>{esc(t(lang, "Positif", "Positive"))}</span><strong>{pos:,} ({pos_pct}%)</strong></div>
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#cc2200"></span>{esc(t(lang, "Negatif", "Negative"))}</span><strong>{neg:,} ({neg_pct}%)</strong></div>
-                <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#b09580"></span>{esc(t(lang, "Netral", "Neutral"))}</span><strong>{neu:,} ({round((neu / total) * 100) if total else 0}%)</strong></div>
+                <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#b09580"></span>{esc(t(lang, "Netral", "Neutral"))}</span><strong>{neu:,} ({neu_pct}%)</strong></div>
               </div>
             </div>
             <div class="panel">
