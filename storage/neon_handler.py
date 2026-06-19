@@ -43,6 +43,14 @@ DB_COLUMNS = [
 POOL_MIN_SIZE = 1
 POOL_MAX_SIZE = 5
 _POOL: Any = None
+SENTIMENT_LABEL_MAP = {
+    "positif": "positive",
+    "positive": "positive",
+    "negatif": "negative",
+    "negative": "negative",
+    "netral": "neutral",
+    "neutral": "neutral",
+}
 
 
 def _get_database_url() -> str:
@@ -106,6 +114,13 @@ def _normalize_value(value: Any) -> Any:
     return value
 
 
+def _normalize_sentiment(value: Any) -> Any:
+    if value is None:
+        return "unknown"
+    sentiment = str(value).strip().lower()
+    return SENTIMENT_LABEL_MAP.get(sentiment, sentiment or "unknown")
+
+
 def _row_payload(row: pd.Series) -> dict[str, Any]:
     """Map a DataFrame row to the database schema."""
     payload = {
@@ -121,7 +136,7 @@ def _row_payload(row: pd.Series) -> dict[str, Any]:
         "fetched_at": _normalize_value(row.get("fetched_at")),
         "published_at_wib": _normalize_value(row.get("pub_date_wib")),
         "domain": _normalize_value(row.get("domain")),
-        "sentiment": _normalize_value(row.get("sentiment")),
+        "sentiment": _normalize_sentiment(row.get("sentiment")),
         "sentiment_confidence": _normalize_value(row.get("sentiment_confidence")),
         "sentiment_reason": _normalize_value(row.get("sentiment_reason")),
         "sentiment_status": _normalize_value(row.get("sentiment_status", "pending")),
@@ -388,7 +403,7 @@ def update_sentiment_result(
                     updated_at = NOW()
                 WHERE article_id = %s
                 """,
-                (sentiment, confidence, reason, status, last_error, status, article_id),
+                (_normalize_sentiment(sentiment), confidence, reason, status, last_error, status, article_id),
             )
 
 

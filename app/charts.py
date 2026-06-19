@@ -8,7 +8,7 @@ except ImportError:  # pragma: no cover - script-style fallback
     from data import esc
 
 
-def mk_donut(sentiment_counts: dict[str, int], total: int) -> str:
+def mk_donut(sentiment_counts: dict[str, int], total: int, lang: str = "id") -> str:
     total = max(total, 1)
     pos = sentiment_counts.get("positive", 0)
     neg = sentiment_counts.get("negative", 0)
@@ -24,7 +24,7 @@ def mk_donut(sentiment_counts: dict[str, int], total: int) -> str:
       <circle cx="50" cy="50" r="32.25" fill="none" stroke="#cc2200" stroke-width="13" stroke-dasharray="{n_len} {c}" stroke-dashoffset="-{p_len}" transform="rotate(-90 50 50)"></circle>
       <circle cx="50" cy="50" r="32.25" fill="none" stroke="#b09580" stroke-width="13" stroke-dasharray="{u_len} {c}" stroke-dashoffset="-{p_len + n_len}" transform="rotate(-90 50 50)"></circle>
       <text x="50" y="47" text-anchor="middle" font-size="10" font-weight="700" fill="#2d2a25" font-family="system-ui">{total:,}</text>
-      <text x="50" y="56" text-anchor="middle" font-size="5.5" fill="#786f62" font-family="system-ui">artikel</text>
+      <text x="50" y="56" text-anchor="middle" font-size="5.5" fill="#786f62" font-family="system-ui">{'artikel' if lang == 'id' else 'articles'}</text>
     </svg>
     """
 
@@ -152,7 +152,7 @@ def mk_source_chart(sources: list[dict[str, object]]) -> str:
     return f'<svg viewBox="0 0 {w} {h}" style="width:100%;height:100%">{"".join(rows)}</svg>'
 
 
-def mk_gauge(avg_conf: float) -> str:
+def mk_gauge(avg_conf: float, lang: str = "id") -> str:
     val = max(0.0, min(1.0, avg_conf))
     r = 36
     cx = 50
@@ -179,6 +179,6 @@ def mk_gauge(avg_conf: float) -> str:
       <line x1="{cx}" y1="{cy}" x2="{nx:.2f}" y2="{ny:.2f}" stroke="#2d2a25" stroke-width="1.5" stroke-linecap="round"></line>
       <circle cx="{cx}" cy="{cy}" r="3" fill="#2d2a25"></circle>
       <text x="{cx}" y="{cy-8.5}" text-anchor="middle" font-size="14.5" font-weight="700" fill="#2d2a25" font-family="system-ui">{round(val * 100):.0f}%</text>
-      <text x="{cx}" y="{cy-1}" text-anchor="middle" font-size="5.5" fill="#786f62" font-family="system-ui">avg confidence</text>
+      <text x="{cx}" y="{cy-1}" text-anchor="middle" font-size="5.5" fill="#786f62" font-family="system-ui">{'rata-rata keyakinan' if lang == 'id' else 'avg confidence'}</text>
     </svg>
     """

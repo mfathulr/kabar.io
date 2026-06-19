@@ -21,6 +21,14 @@ SYSTEM_PROMPT = (
 )
 BATCH_SIZE = 10
 GEMINI_KEYS_ENV = "GEMINI_API_KEYS"
+SENTIMENT_LABEL_MAP = {
+    "positif": "positive",
+    "positive": "positive",
+    "negatif": "negative",
+    "negative": "negative",
+    "netral": "neutral",
+    "neutral": "neutral",
+}
 
 
 def _safe_parse_json(content: str) -> dict[str, Any]:
@@ -75,6 +83,11 @@ def _load_gemini_models() -> list[str]:
     return []
 
 
+def _canonicalize_sentiment(value: object) -> str:
+    sentiment = str(value or "unknown").strip().lower()
+    return SENTIMENT_LABEL_MAP.get(sentiment, "unknown")
+
+
 def classify_sentiment(title: str, description: str) -> tuple[str, float, str, bool, str]:
     """Classify one article and return sentiment data plus success state."""
     api_keys = _load_gemini_keys()
@@ -121,9 +134,7 @@ def classify_sentiment(title: str, description: str) -> tuple[str, float, str, b
                 content = _extract_message_content(response.json())
                 parsed = _safe_parse_json(content)
 
-                sentiment = str(parsed.get("sentiment", "unknown")).strip().lower()
-                if sentiment not in {"positif", "negatif", "netral"}:
-                    sentiment = "unknown"
+                sentiment = _canonicalize_sentiment(parsed.get("sentiment", "unknown"))
 
                 confidence_raw = parsed.get("confidence", 0.0)
                 try:

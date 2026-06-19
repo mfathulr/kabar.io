@@ -17,7 +17,7 @@ except ImportError:  # pragma: no cover - script-style fallback
 def nav_titles(nav: str, lang: str) -> tuple[str, str]:
     titles = {
         "analysis": (t(lang, "Analisis", "Analysis"), t(lang, "Ringkasan, sentimen, kategori, dan sumber dalam satu alur", "Summary, sentiment, category, and source in one flow")),
-        "news": (t(lang, "Feed Berita", "News Feed"), t(lang, "Jelajahi artikel yang diproses pipeline", "Browse articles processed by the pipeline")),
+        "news": (t(lang, "Berita", "News"), t(lang, "Jelajahi artikel hasil pemrosesan", "Browse articles processed by the pipeline")),
     }
     return titles[nav]
 
@@ -90,7 +90,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
             {metric_card(t(lang, "Total Artikel", "Total Articles"), f"{total:,}".replace(",", "."), t(lang, "14 hari terakhir", "Last 14 days"))}
             {metric_card(t(lang, "Sentimen Positif", "Positive Sentiment"), f"{pos_pct}%", t(lang, "Porsi artikel positif", "Share of positive articles"), "positive")}
             {metric_card(t(lang, "Sentimen Negatif", "Negative Sentiment"), f"{neg_pct}%", t(lang, "Porsi artikel negatif", "Share of negative articles"), "negative")}
-            {metric_card("Avg. Confidence", f"{round(avg_conf * 100)}%", t(lang, "Gemini AI score", "Gemini AI score"))}
+            {metric_card(t(lang, "Rata-rata keyakinan", "Avg. Confidence"), f"{round(avg_conf * 100)}%", t(lang, "Skor model Gemini", "Gemini model score"))}
           </div>
         </div>
         """
@@ -106,7 +106,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
           <div class="grid-2-1">
             <div class="panel">
               <div class="card-title">{esc(t(lang, "Distribusi Sentimen", "Sentiment Distribution"))}</div>
-              <div style="height:175px">{mk_donut(stats["sentiment_counts"], total)}</div>
+              <div style="height:175px">{mk_donut(stats["sentiment_counts"], total, lang)}</div>
               <div class="subtle-rule">
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#2d7a3a"></span>{esc(t(lang, "Positif", "Positive"))}</span><strong>{pos:,} ({pos_pct}%)</strong></div>
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#cc2200"></span>{esc(t(lang, "Negatif", "Negative"))}</span><strong>{neg:,} ({neg_pct}%)</strong></div>
@@ -115,7 +115,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
             </div>
             <div class="panel">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-                <div class="card-title" style="margin-bottom:0">{esc(t(lang, f"Tren Sentimen {dr_map(lang, dr)}", f"{dr_map(lang, dr)} Sentiment Trend"))}</div>
+              <div class="card-title" style="margin-bottom:0">{esc(t(lang, f"Tren Sentimen {dr_map(lang, dr)}", f"{dr_map(lang, dr)} Sentiment Trend"))}</div>
                 <div style="display:flex;align-items:center;gap:14px">
                   <div class="legend-item"><span class="legend-swatch" style="width:18px;height:2px;background:#2d7a3a;border-radius:1px"></span>{esc(t(lang, "Positif", "Positive"))}</div>
                   <div class="legend-item"><span class="legend-swatch" style="width:18px;height:2px;background:#cc2200;border-radius:1px"></span>{esc(t(lang, "Negatif", "Negative"))}</div>
@@ -174,8 +174,8 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
         <div class="section-pad section-tight">
           {analysis_section(t(lang, "Siapa yang Membentuk Narasi", "Who Shapes the Narrative"), t(lang, "Sumber menjelaskan media mana yang paling banyak berkontribusi ke percakapan", "Sources show which media contribute most to the conversation"))}
           <div class="panel" style="margin-bottom:10px">
-            <div class="card-title" style="margin-bottom:2px">{esc(t(lang, "Top Sumber Berita", "Top News Sources"))}</div>
-            <div class="card-subtitle">{esc(t(lang, "Distribusi sentimen lintas media — n = total artikel, % = porsi positif", "Sentiment distribution across media — n = total articles, % = positive share"))}</div>
+            <div class="card-title" style="margin-bottom:2px">{esc(t(lang, "Sumber Teratas", "Top Sources"))}</div>
+            <div class="card-subtitle">{esc(t(lang, "Distribusi sentimen lintas sumber — n = total artikel, % = porsi positif", "Sentiment distribution across sources — n = total articles, % = positive share"))}</div>
             <div style="height:265px">{mk_source_chart(stats["sources"])}</div>
             <div class="subtle-rule">
               <div class="legend-row">
@@ -204,7 +204,7 @@ def format_article_date(article: pd.Series) -> str:
 
 
 def mk_article_table(df: pd.DataFrame, lang: str) -> str:
-    labels = ["Judul", "Kategori", "Sentimen", "Confidence", "Sumber", "Tanggal"] if lang == "id" else ["Title", "Category", "Sentiment", "Confidence", "Source", "Date"]
+    labels = ["Judul", "Kategori", "Sentimen", "Keyakinan", "Sumber", "Tanggal"] if lang == "id" else ["Title", "Category", "Sentiment", "Confidence", "Source", "Date"]
     sent_label = {
         "positive": ("Positif", "Positive"),
         "negative": ("Negatif", "Negative"),
@@ -244,8 +244,8 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
           <div class="panel">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:12px">
               <div>
-                <div class="card-title" style="margin-bottom:1px">{esc(t(lang, "Artikel Berita Terkini", "Latest News Articles"))}</div>
-                <div class="card-subtitle" style="margin-bottom:0">{esc(t(lang, "Diproses oleh pipeline kabar.io", "Processed by the kabar.io pipeline"))}</div>
+            <div class="card-title" style="margin-bottom:1px">{esc(t(lang, "Artikel Terbaru", "Latest News Articles"))}</div>
+                <div class="card-subtitle" style="margin-bottom:0">{esc(t(lang, "Hasil pemrosesan kabar.io", "Processed by the kabar.io pipeline"))}</div>
               </div>
               <div class="chip">{len(table_df)} {esc(t(lang, "artikel", "articles"))}</div>
             </div>

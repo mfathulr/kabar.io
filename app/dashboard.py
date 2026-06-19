@@ -7,10 +7,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 try:
-    from .data import clear_dashboard_snapshot_cache, filter_articles, build_stats, load_dashboard_snapshot, esc
+    from .data import clear_dashboard_snapshot_cache, filter_articles, build_stats, load_dashboard_snapshot, esc, t
     from .render import page_css, render_page, topbar
 except ImportError:  # pragma: no cover - script-style fallback
-    from data import clear_dashboard_snapshot_cache, filter_articles, build_stats, load_dashboard_snapshot, esc
+    from data import clear_dashboard_snapshot_cache, filter_articles, build_stats, load_dashboard_snapshot, esc, t
     from render import page_css, render_page, topbar
 
 
@@ -27,13 +27,31 @@ def format_refresh_label(refresh_at: str | None) -> str:
         return refresh_at
 
 
+def localize_source_note(note: str, lang: str) -> str:
+    translations = {
+        "Neon/Postgres unavailable": ("Neon/Postgres tidak tersedia", "Neon/Postgres unavailable"),
+        "Neon/Postgres empty": ("Neon/Postgres kosong", "Neon/Postgres empty"),
+        "data/news.csv missing": ("file data/news.csv tidak ditemukan", "data/news.csv missing"),
+        "Demo": ("Demo", "Demo"),
+    }
+    if not note:
+        return t(lang, "Belum ada catatan", "No note yet")
+    parts = [part.strip() for part in note.split(";") if part.strip()]
+    if not parts:
+        return note
+    localized = [translations.get(part, (part, part))[0 if lang == "id" else 1] for part in parts]
+    return "; ".join(localized)
+
+
 def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None) -> tuple[str, str, bool]:
+    lang = st.session_state.lang
+    display_note = localize_source_note(source_note, lang)
     with st.sidebar:
         st.markdown(
-            """
+            f"""
             <div class="sidebar-brand">
               <div class="sidebar-logo">kabar<span class="accent">.io</span></div>
-              <div class="sidebar-subtitle">Indonesian News Monitor</div>
+              <div class="sidebar-subtitle">{esc(t(lang, "Pantau Berita Indonesia", "Indonesian News Monitor"))}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -42,36 +60,36 @@ def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None)
         st.markdown(
             f"""
             <div class="status-box" style="margin-bottom:12px">
-              <div class="status-row"><div class="pulse"></div><span style="font-size:11px;color:#9e9589;font-weight:500">Pipeline active</span></div>
-              <div style="font-size:10px;color:#3d3028">Data: <span style="color:#5c5048">{esc(source_name)}</span></div>
-              <div style="font-size:10px;color:#5c5048">Note: {esc(source_note)}</div>
-              <div style="font-size:10px;color:#5c5048">Latest refresh: {esc(format_refresh_label(refresh_at))}</div>
+              <div class="status-row"><div class="pulse"></div><span style="font-size:11px;color:#9e9589;font-weight:500">{esc(t(lang, "Alur pemrosesan aktif", "Pipeline active"))}</span></div>
+              <div style="font-size:10px;color:#3d3028">{esc(t(lang, "Data", "Data"))}: <span style="color:#5c5048">{esc(source_name)}</span></div>
+              <div style="font-size:10px;color:#5c5048">{esc(t(lang, "Catatan", "Note"))}: {esc(display_note)}</div>
+              <div style="font-size:10px;color:#5c5048">{esc(t(lang, "Terakhir diperbarui", "Last refreshed"))}: {esc(format_refresh_label(refresh_at))}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
         nav = st.radio(
-            "Navigation",
+            t(lang, "Navigasi", "Navigation"),
             ["analysis", "news"],
             index=["analysis", "news"].index(st.session_state.nav),
             format_func=lambda value: {
-                "analysis": "Analisis",
-                "news": "Berita",
+                "analysis": t(lang, "Analisis", "Analysis"),
+                "news": t(lang, "Berita", "News"),
             }[value],
             label_visibility="collapsed",
         )
 
         st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
         lang = st.radio(
-            "Language",
+            t(lang, "Bahasa", "Language"),
             ["id", "en"],
             index=["id", "en"].index(st.session_state.lang),
             horizontal=True,
             label_visibility="collapsed",
             format_func=lambda value: value.upper(),
         )
-        dark = st.toggle("Dark", value=st.session_state.dark)
+        dark = st.toggle(t(lang, "Gelap", "Dark"), value=st.session_state.dark)
 
     return nav, lang, dark
 
@@ -80,11 +98,11 @@ def refresh_strip(refresh_at: str | None) -> None:
     left, right = st.columns([1, 0.12], gap="small")
     with left:
         st.markdown(
-            f'<div class="refresh-strip"><p class="refresh-meta">Last refresh: {esc(format_refresh_label(refresh_at))}</p></div>',
+            f'<div class="refresh-strip"><p class="refresh-meta">{esc(t(st.session_state.lang, "Terakhir diperbarui", "Last refreshed"))}: {esc(format_refresh_label(refresh_at))}</p></div>',
             unsafe_allow_html=True,
         )
     with right:
-        if st.button("Refresh", use_container_width=True):
+        if st.button(t(st.session_state.lang, "Segarkan", "Refresh"), use_container_width=True):
             clear_dashboard_snapshot_cache()
             st.session_state.latest_refresh_at = None
             st.rerun()
@@ -94,23 +112,35 @@ def main_filters() -> tuple[str, str, str]:
     cols = st.columns(3, gap="small")
     dr_options = ["7d", "14d", "30d", "90d"]
     sent_options = ["all", "positive", "negative", "neutral"]
+    lang = st.session_state.lang
 
     with cols[0]:
-        st.markdown('<div class="toolbar-label">Rentang Waktu</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Rentang Waktu", "Time Range"))}</div>', unsafe_allow_html=True)
         dr = st.selectbox("", dr_options, index=dr_options.index(st.session_state.dr), label_visibility="collapsed", key="main_dr")
     with cols[1]:
-        st.markdown('<div class="toolbar-label">Sentimen</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sentimen", "Sentiment"))}</div>', unsafe_allow_html=True)
         sent_f = st.selectbox(
             "",
             sent_options,
             index=sent_options.index(st.session_state.sent_f),
             label_visibility="collapsed",
             key="main_sentiment",
-            format_func=lambda value: {"all": "Semua", "positive": "Positif", "negative": "Negatif", "neutral": "Netral"}[value],
+            format_func=lambda value: {
+                "all": t(lang, "Semua", "All"),
+                "positive": t(lang, "Positif", "Positive"),
+                "negative": t(lang, "Negatif", "Negative"),
+                "neutral": t(lang, "Netral", "Neutral"),
+            }[value],
         )
     with cols[2]:
-        st.markdown('<div class="toolbar-label">Pencarian</div>', unsafe_allow_html=True)
-        search = st.text_input("", value=st.session_state.search, placeholder="Cari judul atau sumber...", label_visibility="collapsed", key="main_search")
+        st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Pencarian", "Search"))}</div>', unsafe_allow_html=True)
+        search = st.text_input(
+            "",
+            value=st.session_state.search,
+            placeholder=t(lang, "Cari judul atau sumber...", "Search by title or source..."),
+            label_visibility="collapsed",
+            key="main_search",
+        )
 
     return dr, "all" if sent_f == "all" else sent_f, search
 

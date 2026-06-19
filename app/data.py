@@ -47,8 +47,8 @@ CANONICAL_COLUMNS = [
 ]
 
 CATEGORY_LABELS = {
-    "breaking": ("Breaking", "Breaking"),
-    "top": ("Top", "Top"),
+    "breaking": ("Berita Terkini", "Breaking News"),
+    "top": ("Teratas", "Top"),
     "politics": ("Politik", "Politics"),
     "business": ("Bisnis", "Business"),
     "technology": ("Teknologi", "Technology"),
@@ -106,6 +106,17 @@ STOPWORDS = {
     "lebih",
     "telah",
     "sebagai",
+}
+
+SENTIMENT_LABEL_MAP = {
+    "positif": "positive",
+    "positive": "positive",
+    "negatif": "negative",
+    "negative": "negative",
+    "netral": "neutral",
+    "neutral": "neutral",
+    "unknown": "unknown",
+    "tak diketahui": "unknown",
 }
 
 
@@ -180,7 +191,7 @@ def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df["country"] = df["country"].replace("", "id")
     df["category"] = df["category"].replace("", "other").str.lower()
     df["language"] = df["language"].replace("", "id")
-    df["sentiment"] = df["sentiment"].replace("", "unknown").str.lower()
+    df["sentiment"] = df["sentiment"].replace("", "unknown").astype(str).str.lower().replace(SENTIMENT_LABEL_MAP)
     df["sentiment_status"] = df["sentiment_status"].replace("", "pending").str.lower()
     df["sentiment_reason"] = df["sentiment_reason"].fillna("")
     df["sentiment_last_error"] = df["sentiment_last_error"].fillna("")
