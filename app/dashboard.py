@@ -343,7 +343,7 @@ def main() -> None:
     topbar(nav, lang)
     refresh_strip(refresh_at)
     st.markdown('<div class="topbar-divider"></div>', unsafe_allow_html=True)
-    dr, sent_f, cat_f, source_f, search = main_filters(False, source_options)
+    dr, sent_f, cat_f, source_f, _search = main_filters(False, source_options)
     recover_sidebar()
 
     st.session_state.nav = nav
@@ -361,16 +361,15 @@ def main() -> None:
               html, body, [class*="stApp"] { background: #0f0d0b; color: #f0ede8; }
               .topbar { background: rgba(18,16,14,0.98); border-bottom-color: #2a2622; }
               .page-title, .panel .kpi-value, .panel .card-title { color: #f0ede8; }
-              .refresh-meta, .kpi-note, .muted, .card-subtitle, .news-table th, .news-table td { color: #8c8278 !important; }
+              .refresh-meta, .kpi-note, .muted, .card-subtitle { color: #8c8278 !important; }
               .panel, .export-btn { background: #1a1714; border-color: #2a2622; }
-              .bar-track, .subtle-rule, .news-table thead tr, .news-table td { border-color: #2a2622; }
-              .news-table td { border-bottom-color: #2a2622; }
+              .bar-track, .subtle-rule { border-color: #2a2622; }
             </style>
             """,
             unsafe_allow_html=True,
         )
 
-    chart_df, table_df = filter_articles(raw_df, dr, source_f, sent_f, cat_f, search if nav == "news" else "")
+    chart_df, table_df = filter_articles(raw_df, dr, source_f, sent_f, cat_f, "")
     stats = build_stats(chart_df, lang)
     render_page(nav, lang, stats, dr, table_df)
     st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
