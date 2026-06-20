@@ -343,7 +343,7 @@ def main() -> None:
     topbar(nav, lang)
     refresh_strip(refresh_at)
     st.markdown('<div class="topbar-divider"></div>', unsafe_allow_html=True)
-    dr, sent_f, cat_f, source_f, search = main_filters(nav == "news", source_options)
+    dr, sent_f, cat_f, source_f, search = main_filters(False, source_options)
     recover_sidebar()
 
     st.session_state.nav = nav
@@ -352,8 +352,6 @@ def main() -> None:
     st.session_state.cat_f = cat_f
     st.session_state.source_f = source_f
     st.session_state.dr = dr
-    if nav == "news":
-        st.session_state.search = search
     st.session_state.dark = dark
 
     if dark:

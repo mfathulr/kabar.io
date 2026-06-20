@@ -8,10 +8,10 @@ from textwrap import dedent
 
 try:
     from .charts import mk_category_chart, mk_donut, mk_source_chart, mk_timeseries
-    from .data import category_label, esc, t
+    from .data import category_label, choose_date_col, esc, search_articles, t
 except ImportError:  # pragma: no cover - script-style fallback
     from charts import mk_category_chart, mk_donut, mk_source_chart, mk_timeseries
-    from data import category_label, esc, t
+    from data import category_label, choose_date_col, esc, search_articles, t
 
 
 def nav_titles(nav: str, lang: str) -> tuple[str, str]:
@@ -76,6 +76,7 @@ def analysis_section(title: str, subtitle: str) -> str:
 def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
     total = int(stats["total"])
     labeled_total = int(stats.get("labeled_total", 0))
+    unknown_total = int(stats["sentiment_counts"].get("unknown", 0))
     pos = int(stats["sentiment_counts"].get("positive", 0))
     neg = int(stats["sentiment_counts"].get("negative", 0))
     neu = int(stats["sentiment_counts"].get("neutral", 0))
@@ -109,11 +110,14 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
           <div class="grid-2-1">
             <div class="panel">
               <div class="card-title">{esc(t(lang, "Distribusi Sentimen", "Sentiment Distribution"))}</div>
-              <div style="height:175px">{mk_donut(stats["sentiment_counts"], total, lang)}</div>
+              <div style="height:175px">{mk_donut(stats["sentiment_counts"], labeled_total or total, lang)}</div>
               <div class="subtle-rule">
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#2d7a3a"></span>{esc(t(lang, "Positif", "Positive"))}</span><strong>{pos:,} ({pos_pct}%)</strong></div>
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#cc2200"></span>{esc(t(lang, "Negatif", "Negative"))}</span><strong>{neg:,} ({neg_pct}%)</strong></div>
                 <div class="bar-caption"><span class="legend-item"><span class="legend-swatch" style="background:#b09580"></span>{esc(t(lang, "Netral", "Neutral"))}</span><strong>{neu:,} ({neu_pct}%)</strong></div>
+                <div class="news-page-meta" style="margin-top:8px">
+                  {esc(t(lang, f"Belum dilabel: {unknown_total:,} artikel. Distribusi di atas hanya menghitung artikel berlabel.", f"Unlabeled: {unknown_total:,} articles. The chart only counts labeled articles."))}
+                </div>
               </div>
             </div>
             <div class="panel">
@@ -206,8 +210,151 @@ def format_article_date(article: pd.Series) -> str:
     return ""
 
 
+def format_processed_at(article: pd.Series) -> str:
+    value = article.get("sentiment_processed_at")
+    if pd.notna(value):
+        ts = pd.to_datetime(value, utc=True, errors="coerce")
+        if pd.notna(ts):
+            return ts.tz_convert("Asia/Jakarta").strftime("%d %b %H:%M")
+    return ""
+
+
+def format_sort_label(lang: str, key: str) -> str:
+    labels = {
+        "published_at": t(lang, "Terbaru", "Newest"),
+        "confidence": t(lang, "Confidence", "Confidence"),
+        "title": t(lang, "Judul", "Title"),
+        "source": t(lang, "Sumber", "Source"),
+        "category": t(lang, "Kategori", "Category"),
+        "sentiment": t(lang, "Sentimen", "Sentiment"),
+        "status": t(lang, "Status AI", "AI Status"),
+        "attempts": t(lang, "Percobaan", "Attempts"),
+    }
+    return labels.get(key, key)
+
+
+def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int, int, int, str]:
+    sort_options = {
+        "published_at": "published_at",
+        "confidence": "sentiment_confidence",
+        "title": "title",
+        "source": "source_id",
+        "category": "category",
+        "sentiment": "sentiment",
+        "status": "sentiment_status",
+        "attempts": "sentiment_attempts",
+    }
+    cols = st.columns([1.55, 0.62, 0.62, 0.36], gap="small")
+    with cols[0]:
+        search = st.text_input(
+            t(lang, "Cari di detail...", "Search in detail..."),
+            value=st.session_state.get("news_table_search", ""),
+            placeholder=t(lang, "Cari judul, reason, sumber, atau status...", "Search title, reason, source, or status..."),
+            label_visibility="collapsed",
+            key="news_table_search",
+        )
+    with cols[1]:
+        sort_key = st.selectbox(
+            t(lang, "Urutkan", "Sort by"),
+            list(sort_options.keys()),
+            format_func=lambda value: format_sort_label(lang, value),
+            index=list(sort_options.keys()).index(st.session_state.get("news_table_sort", "published_at"))
+            if st.session_state.get("news_table_sort", "published_at") in sort_options
+            else 0,
+            key="news_table_sort",
+            label_visibility="collapsed",
+        )
+    with cols[2]:
+        sort_dir = st.selectbox(
+            t(lang, "Arah", "Direction"),
+            ["desc", "asc"],
+            index=0 if st.session_state.get("news_table_dir", "desc") == "desc" else 1,
+            format_func=lambda value: t(lang, "Terbaru", "Newest") if value == "desc" else t(lang, "Terlama", "Oldest"),
+            key="news_table_dir",
+            label_visibility="collapsed",
+        )
+    with cols[3]:
+        page_size = st.selectbox(
+            t(lang, "Baris", "Rows"),
+            [10, 20, 30, 50],
+            index=[10, 20, 30, 50].index(st.session_state.get("news_table_size", 10))
+            if st.session_state.get("news_table_size", 10) in [10, 20, 30, 50]
+            else 0,
+            key="news_table_size",
+            label_visibility="collapsed",
+        )
+
+    state_sig = (search.strip(), sort_key, sort_dir, page_size)
+    if st.session_state.get("news_table_sig") != state_sig:
+        st.session_state.news_table_page = 1
+        st.session_state.news_table_sig = state_sig
+
+    filtered = search_articles(df, search)
+    if filtered.empty:
+        return filtered, page_size, 1, 0, search
+
+    sort_col = sort_options.get(sort_key, "published_at")
+    sort_df = filtered.copy()
+    date_col = choose_date_col(sort_df)
+    sort_df[date_col] = pd.to_datetime(sort_df[date_col], errors="coerce", utc=True)
+    sort_df["__sent_rank"] = sort_df["sentiment"].fillna("unknown").str.lower().map({"positive": 0, "neutral": 1, "negative": 2, "unknown": 3}).fillna(3)
+    sort_df["__status_rank"] = sort_df["sentiment_status"].fillna("pending").str.lower().map({"done": 0, "processing": 1, "pending": 2}).fillna(3)
+
+    if sort_col == "published_at":
+        sort_value = date_col
+        sort_kwargs = {"na_position": "last"}
+    elif sort_col == "sentiment_confidence":
+        sort_value = sort_col
+        sort_kwargs = {"na_position": "last"}
+    elif sort_col == "sentiment_attempts":
+        sort_value = sort_col
+        sort_kwargs = {"na_position": "last"}
+    elif sort_col == "title":
+        sort_df["__title"] = sort_df["title"].fillna("").astype(str).str.lower()
+        sort_value = "__title"
+        sort_kwargs = {"na_position": "last"}
+    elif sort_col == "source_id":
+        sort_df["__source"] = sort_df["source_id"].fillna("").replace("", pd.NA).fillna(sort_df["domain"].fillna("unknown")).fillna("unknown").astype(str).str.lower()
+        sort_value = "__source"
+        sort_kwargs = {"na_position": "last"}
+    elif sort_col == "category":
+        sort_df["__category"] = sort_df["category"].fillna("").astype(str).str.lower()
+        sort_value = "__category"
+        sort_kwargs = {"na_position": "last"}
+    elif sort_col == "sentiment":
+        sort_value = "__sent_rank"
+        sort_kwargs = {"na_position": "last"}
+    else:
+        sort_value = "__status_rank"
+        sort_kwargs = {"na_position": "last"}
+
+    ascending = sort_dir == "asc"
+    sort_df = sort_df.sort_values(sort_value, ascending=ascending, **sort_kwargs).reset_index(drop=True)
+
+    total_pages = max(1, math.ceil(len(sort_df) / page_size))
+    current_page = int(st.session_state.get("news_table_page", 1))
+    current_page = min(max(current_page, 1), total_pages)
+    st.session_state.news_table_page = current_page
+    start = (current_page - 1) * page_size
+    page_df = sort_df.iloc[start : start + page_size].reset_index(drop=True)
+
+    return page_df, page_size, total_pages, len(filtered), search
+
+
 def mk_article_table(df: pd.DataFrame, lang: str) -> str:
-    labels = ["Judul", "Kategori", "Sentimen", "Keyakinan", "Sumber", "Tanggal"] if lang == "id" else ["Title", "Category", "Sentiment", "Confidence", "Source", "Date"]
+    labels = [
+        t(lang, "Judul", "Title"),
+        t(lang, "Kategori", "Category"),
+        t(lang, "Sentimen", "Sentiment"),
+        t(lang, "Confidence", "Confidence"),
+        t(lang, "Status AI", "AI Status"),
+        t(lang, "Reason AI", "AI Reason"),
+        t(lang, "Sumber", "Source"),
+        t(lang, "Tanggal", "Date"),
+        t(lang, "Attempts", "Attempts"),
+        t(lang, "Diproses", "Processed"),
+        t(lang, "Error", "Error"),
+    ]
     sent_label = {
         "positive": ("Positif", "Positive"),
         "negative": ("Negatif", "Negative"),
@@ -219,14 +366,24 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
         title = article.get("title", "")
         category = category_label(article.get("category", ""), lang)
         sent = str(article.get("sentiment", "unknown")).lower()
+        reason = str(article.get("sentiment_reason", "")).strip() or "—"
+        status = str(article.get("sentiment_status", "pending")).strip().lower() or "pending"
+        attempts = int(article.get("sentiment_attempts", 0) or 0)
+        processed_at = format_processed_at(article) or "—"
+        last_error = str(article.get("sentiment_last_error", "")).strip() or "—"
         rows.append(
             "<tr class='news-row'>"
-            f'<td style="max-width:300px;color:#2d2a25;line-height:1.35">{esc(title)}</td>'
+            f'<td style="max-width:280px;color:#2d2a25;line-height:1.35"><div class="news-line">{esc(title)}</div></td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(category)}</td>'
             f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "unknown"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
             f'<td style="color:#786f62;white-space:nowrap">{round(float(article.get("sentiment_confidence", 0)) * 100)}%</td>'
+            f'<td style="white-space:nowrap"><span class="news-pill pill-{"positive" if status == "done" else "neutral" if status == "processing" else "unknown"}">{esc(status)}</span></td>'
+            f'<td style="max-width:260px;color:#4f473e;line-height:1.4"><div class="news-line news-reason">{esc(reason)}</div></td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(article.get("source_id") or article.get("domain") or "unknown")}</td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(format_article_date(article))}</td>'
+            f'<td style="color:#786f62;white-space:nowrap">{attempts}</td>'
+            f'<td style="color:#786f62;white-space:nowrap">{esc(processed_at)}</td>'
+            f'<td style="max-width:220px;color:#8c8278;line-height:1.35"><div class="news-note">{esc(last_error)}</div></td>'
             "</tr>"
         )
     return f"""
@@ -240,6 +397,17 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
 
 
 def render_news(table_df: pd.DataFrame, lang: str) -> None:
+    page_df, page_size, total_pages, filtered_count, _search = render_news_controls(table_df, lang)
+    current_page = int(st.session_state.get("news_table_page", 1))
+    if page_df.empty:
+        table_html = f"""
+        <div class="panel" style="border-style:dashed;background:#fbf9f5">
+          <div class="news-page-meta">{esc(t(lang, "Tidak ada artikel yang cocok dengan filter ini.", "No articles match this filter."))}</div>
+        </div>
+        """
+    else:
+        table_html = mk_article_table(page_df, lang)
+    page_summary = t(lang, f"Halaman {current_page}/{total_pages}", f"Page {current_page}/{total_pages}")
     st.markdown(
         dedent(
             f"""
@@ -247,18 +415,36 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
           <div class="panel">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:12px">
               <div>
-            <div class="card-title" style="margin-bottom:1px">{esc(t(lang, "Artikel Terbaru", "Latest News Articles"))}</div>
+            <div class="card-title" style="margin-bottom:1px">{esc(t(lang, "Detail Artikel", "Article Detail"))}</div>
                 <div class="card-subtitle" style="margin-bottom:0">{esc(t(lang, "Hasil pemrosesan kabar.io", "Processed by the kabar.io pipeline"))}</div>
               </div>
-              <div class="chip">{len(table_df)} {esc(t(lang, "artikel", "articles"))}</div>
             </div>
-            {mk_article_table(table_df, lang)}
+            <div class="news-page-meta" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <span>{esc(t(lang, f"{filtered_count} artikel cocok dengan filter dan pencarian ini.", f"{filtered_count} articles match this filter and search."))}</span>
+              <span class="news-page-pill">{esc(page_summary)}</span>
+            </div>
+            {table_html}
           </div>
         </div>
         """
         ),
         unsafe_allow_html=True,
     )
+    if total_pages > 1:
+        prev_col, meta_col, next_col = st.columns([0.28, 0.44, 0.28], gap="small")
+        with prev_col:
+            if st.button(t(lang, "← Kembali", "← Back"), use_container_width=True, disabled=current_page <= 1, key="news_prev_page"):
+                st.session_state.news_table_page = max(1, current_page - 1)
+                st.rerun()
+        with meta_col:
+            st.markdown(
+                f'<div class="news-page-pill" style="justify-content:center;width:100%">{esc(t(lang, f"Halaman {current_page}/{total_pages}", f"Page {current_page}/{total_pages}"))}</div>',
+                unsafe_allow_html=True,
+            )
+        with next_col:
+            if st.button(t(lang, "Lanjut →", "Next →"), use_container_width=True, disabled=current_page >= total_pages, key="news_next_page"):
+                st.session_state.news_table_page = min(total_pages, current_page + 1)
+                st.rerun()
 
 
 def render_page(nav: str, lang: str, stats: dict[str, object], dr: str, table_df: pd.DataFrame) -> None:
