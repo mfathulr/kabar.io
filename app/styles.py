@@ -11,6 +11,13 @@ BASE_CSS = """
     --text-muted: #665d52;
     --text-soft: #75695d;
     --focus-ring: rgba(204,34,0,0.28);
+    --chart-text: #2d2a25;
+    --chart-muted: #786f62;
+    --chart-grid: #e8e0d4;
+    --chart-track: #e8e0d4;
+    --chart-positive: #2d7a3a;
+    --chart-negative: #cc2200;
+    --chart-neutral: #b09580;
   }
   html, body, [class*="stApp"] { background: #f5f2ec; color: var(--text-main); }
   .stApp { font-family: var(--font-body); }
@@ -57,7 +64,6 @@ BASE_CSS = """
     border-right: 1px solid rgba(255,255,255,0.06);
   }
   section[data-testid="stSidebar"] > div { padding-top: 0; }
-  section[data-testid="stSidebar"] * { color: #9e9589; }
   section[data-testid="stSidebar"] [data-testid="stRadio"] { margin-top: 2px; }
   section[data-testid="stSidebar"] [role="radiogroup"] { gap: 2px; }
   section[data-testid="stSidebar"] [role="radiogroup"] label {
@@ -340,6 +346,38 @@ BASE_CSS = """
     .news-pill { padding: 2px 7px; font-size: 10.5px; }
     .news-source-link { width: 100%; justify-content: center; }
   }
+  @media (max-width: 768px) {
+    .stHorizontalBlock {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.toolbar-label) {
+      flex-direction: column;
+      gap: 0.45rem !important;
+      align-items: stretch;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.toolbar-label) > div {
+      width: 100% !important;
+      padding-top: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.toolbar-label) button[data-testid="stPopoverButton"],
+    div[data-testid="stHorizontalBlock"]:has(.toolbar-label) .stTextInput input,
+    div[data-testid="stHorizontalBlock"]:has(.toolbar-label) .stSelectbox [data-baseweb="select"],
+    div[data-testid="stHorizontalBlock"]:has(.toolbar-label) .stSelectbox [role="combobox"] {
+      min-height: 2.8rem;
+      height: 2.8rem;
+      width: 100%;
+    }
+    div[data-testid="stPopover"] > div:last-child,
+    div[data-testid="stPopover"]:has(.news-columns-popover) > div:last-child,
+    div[data-testid="stPopover"]:has(.news-sort-popover) > div:last-child {
+      min-width: calc(100vw - 24px) !important;
+      width: calc(100vw - 24px) !important;
+    }
+    div[data-testid="stPopover"]:has(.news-sort-popover) .stColumns {
+      gap: 0.55rem;
+    }
+  }
   .sidebar-brand { padding: 22px 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .sidebar-logo {
     font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #f0ede8;
@@ -354,7 +392,15 @@ BASE_CSS = """
   .status-box {
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 9px 11px;
   }
+  .sidebar-status-box { margin-bottom: 12px; }
   .status-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .sidebar-status-title { font-size: 11px; color: #9e9589; font-weight: 500; }
+  .sidebar-status-line { font-size: 10px; color: #5c5048; line-height: 1.35; }
+  .sidebar-status-label { color: #3d3028; }
+  .sidebar-status-value { color: #5c5048; }
+  .chart-shell {
+    color: var(--chart-text);
+  }
   .pulse { width: 6px; height: 6px; border-radius: 50%; background: #2d7a3a; animation: pulse 2.5s infinite; flex-shrink: 0; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
   .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
@@ -583,6 +629,8 @@ BASE_CSS = """
   div[data-testid="stPopover"]:has(.news-columns-popover) .stCaption {
     white-space: normal;
     line-height: 1.45;
+  }
+  @media (max-width: 768px) {
   }
   div[data-testid="stTextInput"] {
     margin-top: 0;

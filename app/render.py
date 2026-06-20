@@ -127,10 +127,10 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
                 <div style="display:flex;align-items:center;gap:14px">
                   <div class="legend-item"><span class="legend-swatch" style="width:18px;height:2px;background:#2d7a3a;border-radius:1px"></span>{esc(t(lang, "Positif", "Positive"))}</div>
                   <div class="legend-item"><span class="legend-swatch" style="width:18px;height:2px;background:#cc2200;border-radius:1px"></span>{esc(t(lang, "Negatif", "Negative"))}</div>
-                  <div class="legend-item"><span class="legend-swatch" style="width:18px;height:1px;background:#786f62;border-radius:1px;opacity:0.4"></span>Total</div>
+                  <div class="legend-item"><span class="legend-swatch" style="width:18px;height:1px;background:#786f62;border-radius:1px;opacity:0.4"></span>{esc(t(lang, "Total", "Total"))}</div>
                 </div>
               </div>
-              <div style="height:230px">{mk_timeseries(stats["time_series"])}</div>
+              <div style="height:230px">{mk_timeseries(stats["time_series"], lang)}</div>
             </div>
           </div>
         </div>
@@ -184,7 +184,7 @@ def render_overview(stats: dict[str, object], lang: str, dr: str) -> None:
           <div class="panel" style="margin-bottom:10px">
             <div class="card-title" style="margin-bottom:2px">{esc(t(lang, "Sumber Teratas", "Top Sources"))}</div>
             <div class="card-subtitle">{esc(t(lang, "Distribusi sentimen lintas sumber — n = total artikel, % = porsi positif", "Sentiment distribution across sources — n = total articles, % = positive share"))}</div>
-            <div style="height:265px">{mk_source_chart(stats["sources"])}</div>
+            <div style="height:265px">{mk_source_chart(stats["sources"], lang)}</div>
             <div class="subtle-rule">
               <div class="legend-row">
                 <div class="legend-item"><span class="legend-swatch" style="width:14px;height:7px;background:#2d7a3a;border-radius:1px"></span>{esc(t(lang, "Positif", "Positive"))}</div>
@@ -252,8 +252,8 @@ def news_header_label(lang: str, key: str) -> str:
         "source": t(lang, "Sumber", "Source"),
         "category": t(lang, "Kategori", "Category"),
         "sentiment": t(lang, "Sentimen", "Sentiment"),
-        "status": t(lang, "Status AI", "AI Status"),
-        "reason": t(lang, "Reason AI", "AI Reason"),
+        "status": t(lang, "Status model", "Model status"),
+        "reason": t(lang, "Alasan model", "Model rationale"),
         "attempts": t(lang, "Attempts", "Attempts"),
         "processed": t(lang, "Diproses", "Processed"),
         "error": t(lang, "Error", "Error"),
@@ -294,7 +294,7 @@ def render_news_toolbar(lang: str) -> None:
         "source": t(lang, "Sumber", "Source"),
         "category": t(lang, "Kat", "Cat"),
         "sentiment": t(lang, "Sent", "Sent"),
-        "confidence": t(lang, "Conf", "Conf"),
+        "confidence": t(lang, "Key", "Conf"),
         "status": t(lang, "Status", "Status"),
         "reason": t(lang, "Alasan", "Reason"),
         "attempts": t(lang, "Attempts", "Attempts"),
@@ -305,8 +305,8 @@ def render_news_toolbar(lang: str) -> None:
     sort_mode_options = {
         "newest": t(lang, "Terbaru", "Newest"),
         "oldest": t(lang, "Terlama", "Oldest"),
-        "confidence_desc": t(lang, "Confidence tinggi", "High confidence"),
-        "confidence_asc": t(lang, "Confidence rendah", "Low confidence"),
+        "confidence_desc": t(lang, "Keyakinan tinggi", "High confidence"),
+        "confidence_asc": t(lang, "Keyakinan rendah", "Low confidence"),
         "attempts_desc": t(lang, "Attempts tinggi", "High attempts"),
         "custom": t(lang, "Kustom", "Custom"),
     }
@@ -316,9 +316,9 @@ def render_news_toolbar(lang: str) -> None:
         ("source", t(lang, "Sumber", "Source")),
         ("category", t(lang, "Kategori", "Category")),
         ("sentiment", t(lang, "Sentimen", "Sentiment")),
-        ("confidence", t(lang, "Confidence", "Confidence")),
-        ("status", t(lang, "Status AI", "AI Status")),
-        ("reason", t(lang, "Reason AI", "AI Reason")),
+        ("confidence", t(lang, "Keyakinan", "Confidence")),
+        ("status", t(lang, "Status model", "Model status")),
+        ("reason", t(lang, "Alasan model", "Model rationale")),
         ("attempts", t(lang, "Attempts", "Attempts")),
         ("processed", t(lang, "Diproses", "Processed")),
         ("error", t(lang, "Error", "Error")),
@@ -341,7 +341,7 @@ def render_news_toolbar(lang: str) -> None:
         with st.popover(t(lang, "Kolom terpilih", "Selected columns")):
             st.markdown('<div class="news-columns-popover"></div>', unsafe_allow_html=True)
             st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kolom terpilih", "Selected columns"))}</div>', unsafe_allow_html=True)
-            st.caption(t(lang, "Pilih kolom yang ingin ditampilkan.", "Choose the columns to display."))
+            st.caption(t(lang, "Pilih kolom yang ingin ditampilkan.", "Choose which columns to display."))
             selected_columns = []
             checkbox_cols = st.columns(2, gap="small")
             for idx, column_key in enumerate(news_column_keys):
@@ -362,7 +362,7 @@ def render_news_toolbar(lang: str) -> None:
         with st.popover(t(lang, "Urutkan", "Sort")):
             st.markdown('<div class="news-sort-popover"></div>', unsafe_allow_html=True)
             st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Urutkan", "Sort"))}</div>', unsafe_allow_html=True)
-            st.caption(t(lang, "Pilih field dan arah untuk tiap level urutan.", "Choose a field and direction for each sort level."))
+            st.caption(t(lang, "Pilih kolom dan arah untuk tiap level.", "Choose the column and direction for each level."))
             if st.button(t(lang, "+ Tambah level", "+ Add level"), use_container_width=True):
                 st.session_state.news_sort_levels.append({"id": uuid.uuid4().hex, "field": "", "direction": "desc"})
                 st.rerun()
@@ -376,9 +376,9 @@ def render_news_toolbar(lang: str) -> None:
                 st.markdown(f'<div class="news-sort-level">L{idx + 1}</div>', unsafe_allow_html=True)
 
                 field_value = st.selectbox(
-                    t(lang, "Field", "Field"),
+                    t(lang, "Kolom", "Column"),
                     options=[""] + [item[0] for item in sort_field_options],
-                    format_func=lambda key: t(lang, "Pilih field", "Choose field") if key == "" else sort_field_map[key],
+                    format_func=lambda key: t(lang, "Pilih kolom", "Choose column") if key == "" else sort_field_map[key],
                     key=f"news_sort_field_{level_id}",
                     index=([""] + [item[0] for item in sort_field_options]).index(str(level.get("field", ""))) if str(level.get("field", "")) in ([""] + [item[0] for item in sort_field_options]) else 0,
                     label_visibility="collapsed",
@@ -406,7 +406,7 @@ def render_news_toolbar(lang: str) -> None:
         st.text_input(
             "",
             value=st.session_state.get("news_table_search", ""),
-            placeholder=t(lang, "Cari judul...", "Search title..."),
+            placeholder=t(lang, "Cari judul artikel...", "Search article titles..."),
             key="news_table_search",
             label_visibility="collapsed",
         )

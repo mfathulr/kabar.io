@@ -15,9 +15,9 @@ except ImportError:  # pragma: no cover - script-style fallback
     from render import page_css, render_page, topbar
 
 
-def format_refresh_label(refresh_at: str | None) -> str:
+def format_refresh_label(refresh_at: str | None, lang: str = "id") -> str:
     if not refresh_at:
-        return "Belum ada"
+        return t(lang, "Belum ada", "No data yet")
     try:
         ts = datetime.fromisoformat(refresh_at)
         if ts.tzinfo is None:
@@ -36,7 +36,7 @@ def localize_source_note(note: str, lang: str) -> str:
         "Demo": ("Demo", "Demo"),
     }
     if not note:
-        return t(lang, "Belum ada catatan", "No note yet")
+        return t(lang, "Belum ada catatan", "No note available")
     parts = [part.strip() for part in note.split(";") if part.strip()]
     if not parts:
         return note
@@ -55,6 +55,22 @@ def build_source_options(df) -> list[str]:
     return options
 
 
+def update_document_title(nav: str, lang: str) -> None:
+    title, _ = {
+        "analysis": (t(lang, "Analisis", "Analysis"), t(lang, "Ringkasan, sentimen, kategori, dan sumber dalam satu alur", "Summary, sentiment, category, and source in one flow")),
+        "news": (t(lang, "Berita", "News"), t(lang, "Jelajahi artikel hasil pemrosesan", "Browse articles processed by the pipeline")),
+    }[nav]
+    browser_title = f"kabar.io | {title}"
+    components.html(
+        f"""
+        <script>
+          document.title = {browser_title!r};
+        </script>
+        """,
+        height=0,
+    )
+
+
 def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None) -> tuple[str, bool]:
     lang = st.session_state.lang
     display_note = localize_source_note(source_note, lang)
@@ -63,7 +79,7 @@ def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None)
             f"""
             <div class="sidebar-brand">
               <div class="sidebar-logo">kabar<span class="accent">.io</span></div>
-              <div class="sidebar-subtitle">{esc(t(lang, "Pantau Berita Indonesia", "Indonesian News Monitor"))}</div>
+              <div class="sidebar-subtitle">{esc(t(lang, "Pantau Berita Indonesia", "Track Indonesian news"))}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -71,11 +87,23 @@ def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None)
 
         st.markdown(
             f"""
-            <div class="status-box" style="margin-bottom:12px">
-              <div class="status-row"><div class="pulse"></div><span style="font-size:11px;color:#9e9589;font-weight:500">{esc(t(lang, "Alur pemrosesan aktif", "Pipeline active"))}</span></div>
-              <div style="font-size:10px;color:#3d3028">{esc(t(lang, "Data", "Data"))}: <span style="color:#5c5048">{esc(source_name)}</span></div>
-              <div style="font-size:10px;color:#5c5048">{esc(t(lang, "Catatan", "Note"))}: {esc(display_note)}</div>
-              <div style="font-size:10px;color:#5c5048">{esc(t(lang, "Terakhir diperbarui", "Last refreshed"))}: {esc(format_refresh_label(refresh_at))}</div>
+            <div class="status-box sidebar-status-box">
+              <div class="status-row">
+                <div class="pulse"></div>
+                <span class="sidebar-status-title">{esc(t(lang, "Alur pemrosesan aktif", "Pipeline active"))}</span>
+              </div>
+              <div class="sidebar-status-line">
+                <span class="sidebar-status-label">{esc(t(lang, "Data", "Data"))}:</span>
+                <span class="sidebar-status-value">{esc(source_name)}</span>
+              </div>
+              <div class="sidebar-status-line">
+                <span class="sidebar-status-label">{esc(t(lang, "Catatan", "Note"))}:</span>
+                <span class="sidebar-status-value">{esc(display_note)}</span>
+              </div>
+              <div class="sidebar-status-line">
+                <span class="sidebar-status-label">{esc(t(lang, "Terakhir diperbarui", "Last refreshed"))}:</span>
+                <span class="sidebar-status-value">{esc(format_refresh_label(refresh_at, lang))}</span>
+              </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -98,7 +126,7 @@ def refresh_strip(refresh_at: str | None) -> None:
     left, right = st.columns([1, 0.12], gap="small")
     with left:
         st.markdown(
-            f'<div class="refresh-strip"><p class="refresh-meta">{esc(t(st.session_state.lang, "Terakhir diperbarui", "Last refreshed"))}: {esc(format_refresh_label(refresh_at))}</p></div>',
+            f'<div class="refresh-strip"><p class="refresh-meta">{esc(t(st.session_state.lang, "Terakhir diperbarui", "Last refreshed"))}: {esc(format_refresh_label(refresh_at, st.session_state.lang))}</p></div>',
             unsafe_allow_html=True,
         )
     with right:
@@ -180,7 +208,7 @@ def main_filters(show_search: bool, source_options: list[str]) -> tuple[str, str
             search = st.text_input(
                 "",
                 value=st.session_state.search,
-                placeholder=t(lang, "Cari judul atau sumber...", "Search by title or source..."),
+                placeholder=t(lang, "Cari judul artikel...", "Search article titles..."),
                 label_visibility="collapsed",
                 key="main_search",
             )
@@ -319,7 +347,7 @@ def recover_sidebar() -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="kabar.io Dashboard", layout="wide", initial_sidebar_state="expanded")
+    st.set_page_config(page_title="kabar.io", layout="wide", initial_sidebar_state="expanded")
     st.session_state.setdefault("nav", "analysis")
     st.session_state.setdefault("lang", "id")
     st.session_state.setdefault("dark", False)
@@ -340,6 +368,7 @@ def main() -> None:
 
     lang, dark = sidebar_controls(source_name, source_note, refresh_at)
     nav = st.session_state.nav
+    update_document_title(nav, lang)
     topbar(nav, lang)
     refresh_strip(refresh_at)
     st.markdown('<div class="topbar-divider"></div>', unsafe_allow_html=True)
@@ -358,12 +387,106 @@ def main() -> None:
         st.markdown(
             """
             <style>
+              :root {
+                --text-main: #f0ede8;
+                --text-muted: #b7ada2;
+                --text-soft: #a79d92;
+                --focus-ring: rgba(255,255,255,0.16);
+                --chart-text: #f4f0ea;
+                --chart-muted: #a79d92;
+                --chart-grid: #2a2622;
+                --chart-track: #2a2622;
+                --chart-positive: #9be3ac;
+                --chart-negative: #ffb3a3;
+                --chart-neutral: #d8cfc4;
+              }
               html, body, [class*="stApp"] { background: #0f0d0b; color: #f0ede8; }
-              .topbar { background: rgba(18,16,14,0.98); border-bottom-color: #2a2622; }
-              .page-title, .panel .kpi-value, .panel .card-title { color: #f0ede8; }
-              .refresh-meta, .kpi-note, .muted, .card-subtitle { color: #8c8278 !important; }
-              .panel, .export-btn { background: #1a1714; border-color: #2a2622; }
+              .topbar { background: rgba(18,16,14,0.98); }
+              .topbar-divider { background: linear-gradient(90deg, #2a2622 0%, rgba(42,38,34,0.2) 100%); }
+              .page-title, .panel .kpi-value, .panel .card-title, .analysis-section-title { color: #f4f0ea; }
+              .refresh-meta, .kpi-note, .muted, .card-subtitle, .analysis-section-subtitle { color: #a79d92 !important; }
+              .panel, .export-btn, .word-cloud-chip {
+                background: #1a1714;
+                border-color: #2a2622;
+              }
+              .panel:hover { border-color: #3a342d; box-shadow: 0 10px 24px rgba(0,0,0,0.28); }
               .bar-track, .subtle-rule { border-color: #2a2622; }
+              .news-table-scroll { background: #15120f; border: 1px solid #2a2622; }
+              .news-grid-table thead th {
+                background: linear-gradient(180deg, rgba(28,24,21,0.98), rgba(22,19,16,0.98));
+                color: #f4f0ea;
+                border-bottom-color: #2a2622;
+              }
+              .news-grid-table td {
+                color: #d8cfc4;
+                border-bottom-color: #2a2622;
+              }
+              .news-grid-table tbody tr:nth-child(odd) td { background: rgba(27,24,20,0.82); }
+              .news-grid-table tbody tr:hover { background: rgba(37,33,29,0.92); }
+              .cell-title { color: #f4f0ea; }
+              .cell-meta, .cell-reason, .cell-error { color: #b7ada2; }
+              .toolbar-label, .news-sort-level { color: #d0c6bb; }
+              .news-table-empty { color: #b7ada2; }
+              button[data-testid="stPopoverButton"],
+              .stButton button,
+              button[kind="secondary"] {
+                background: #24201c;
+                border-color: #3a342d;
+                color: #f4f0ea;
+              }
+              button[data-testid="stPopoverButton"]:hover,
+              .stButton button:hover,
+              button[kind="secondary"]:hover {
+                background: #2d2924;
+                border-color: #4a433b;
+                color: #ffffff;
+              }
+              .stTextInput input,
+              .stSelectbox [data-baseweb="select"],
+              .stMultiSelect [data-baseweb="select"] {
+                background: #1c1815 !important;
+                border-color: #3a342d !important;
+                color: #f4f0ea !important;
+              }
+              .stTextInput input::placeholder {
+                color: #8b8178 !important;
+                opacity: 1;
+              }
+              .stSelectbox [role="combobox"],
+              .stMultiSelect [role="combobox"] {
+                color: #f4f0ea !important;
+              }
+              div[data-testid="stPopover"] > div:last-child {
+                background: #15120f;
+                border-color: #2a2622;
+              }
+              .news-pill.pill-positive { background: rgba(45,122,58,0.22); color: #9be3ac; }
+              .news-pill.pill-negative { background: rgba(204,34,0,0.20); color: #ffb3a3; }
+              .news-pill.pill-neutral { background: rgba(176,149,128,0.20); color: #e2d5c7; }
+              .news-pill.pill-unknown { background: rgba(140,130,120,0.16); color: #d4cac0; border-color: #4b443d; }
+              .stSidebar, section[data-testid="stSidebar"] { background: #13100d; }
+              section[data-testid="stSidebar"] .sidebar-brand { border-bottom-color: rgba(255,255,255,0.06); }
+              section[data-testid="stSidebar"] .sidebar-logo { color: #f4f0ea; }
+              section[data-testid="stSidebar"] .sidebar-subtitle,
+              section[data-testid="stSidebar"] .sidebar-section-title,
+              section[data-testid="stSidebar"] .sidebar-label,
+              section[data-testid="stSidebar"] .sidebar-status-title,
+              section[data-testid="stSidebar"] .sidebar-status-label,
+              section[data-testid="stSidebar"] .sidebar-status-value {
+                color: #c4b9ad !important;
+              }
+              section[data-testid="stSidebar"] .sidebar-status-box {
+                background: #17130f;
+                border-color: #2a2622;
+              }
+              section[data-testid="stSidebar"] .stRadio label:has(input[type="radio"]:checked) {
+                background: rgba(204,34,0,0.22);
+                border-color: rgba(204,34,0,0.34);
+                color: #f4f0ea;
+              }
+              section[data-testid="stSidebar"] .stRadio label:hover {
+                background: rgba(255,255,255,0.035);
+              }
             </style>
             """,
             unsafe_allow_html=True,
