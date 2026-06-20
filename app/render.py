@@ -244,16 +244,33 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
         "status": "sentiment_status",
         "attempts": "sentiment_attempts",
     }
-    cols = st.columns([1.55, 0.62, 0.62, 0.36], gap="small")
+    st.markdown(
+        f"""
+        <div class="news-toolbar-shell">
+          <div class="news-toolbar-title search">{esc(t(lang, "Cari", "Search"))}</div>
+          <div class="news-toolbar-hint">{esc(t(lang, "Cari judul, reason, sumber, status, atau error AI.", "Search title, reason, source, status, or AI error."))}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    search = st.text_input(
+        t(lang, "Cari di detail...", "Search in detail..."),
+        value=st.session_state.get("news_table_search", ""),
+        placeholder=t(lang, "Cari judul, reason, sumber, atau status...", "Search title, reason, source, or status..."),
+        label_visibility="collapsed",
+        key="news_table_search",
+    )
+    st.markdown(
+        f"""
+        <div class="news-toolbar-shell">
+          <div class="news-toolbar-title sort">{esc(t(lang, "Urutkan & Batasi", "Sort & Limit"))}</div>
+          <div class="news-toolbar-hint">{esc(t(lang, "Urutan, arah, dan jumlah baris tampil di sini.", "Order, direction, and visible rows are controlled here."))}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    cols = st.columns([1.1, 0.72, 0.38], gap="small")
     with cols[0]:
-        search = st.text_input(
-            t(lang, "Cari di detail...", "Search in detail..."),
-            value=st.session_state.get("news_table_search", ""),
-            placeholder=t(lang, "Cari judul, reason, sumber, atau status...", "Search title, reason, source, or status..."),
-            label_visibility="collapsed",
-            key="news_table_search",
-        )
-    with cols[1]:
         sort_key = st.selectbox(
             t(lang, "Urutkan", "Sort by"),
             list(sort_options.keys()),
@@ -264,7 +281,7 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
             key="news_table_sort",
             label_visibility="collapsed",
         )
-    with cols[2]:
+    with cols[1]:
         sort_dir = st.selectbox(
             t(lang, "Arah", "Direction"),
             ["desc", "asc"],
@@ -273,7 +290,7 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
             key="news_table_dir",
             label_visibility="collapsed",
         )
-    with cols[3]:
+    with cols[2]:
         page_size = st.selectbox(
             t(lang, "Baris", "Rows"),
             [10, 20, 30, 50],
@@ -339,6 +356,46 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
     page_df = sort_df.iloc[start : start + page_size].reset_index(drop=True)
 
     return page_df, page_size, total_pages, len(filtered), search
+
+
+def page_items(total_pages: int, current_page: int, window: int = 2) -> list[int | str]:
+    if total_pages <= 7:
+        return list(range(1, total_pages + 1))
+
+    items: list[int | str] = [1]
+    start = max(2, current_page - window)
+    end = min(total_pages - 1, current_page + window)
+
+    if start > 2:
+        items.append("...")
+    for page in range(start, end + 1):
+        items.append(page)
+    if end < total_pages - 1:
+        items.append("...")
+    items.append(total_pages)
+    return items
+
+
+def render_page_jumper(total_pages: int, current_page: int, lang: str) -> None:
+    items = page_items(total_pages, current_page)
+    st.markdown(
+        f'<div class="news-page-meta" style="margin:10px 0 8px">{esc(t(lang, "Klik angka untuk lompat ke halaman tertentu.", "Click a page number to jump directly."))}</div>',
+        unsafe_allow_html=True,
+    )
+    cols = st.columns(len(items), gap="small")
+    for idx, item in enumerate(items):
+        with cols[idx]:
+            if item == "...":
+                st.markdown('<div class="news-page-ellipsis">…</div>', unsafe_allow_html=True)
+            elif int(item) == current_page:
+                st.markdown(
+                    f'<div class="news-page-pill is-active" style="justify-content:center;width:100%">{esc(str(item))}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                if st.button(str(item), use_container_width=True, key=f"news_page_{item}"):
+                    st.session_state.news_table_page = int(item)
+                    st.rerun()
 
 
 def mk_article_table(df: pd.DataFrame, lang: str) -> str:
@@ -431,20 +488,11 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
         unsafe_allow_html=True,
     )
     if total_pages > 1:
-        prev_col, meta_col, next_col = st.columns([0.28, 0.44, 0.28], gap="small")
-        with prev_col:
-            if st.button(t(lang, "← Kembali", "← Back"), use_container_width=True, disabled=current_page <= 1, key="news_prev_page"):
-                st.session_state.news_table_page = max(1, current_page - 1)
-                st.rerun()
-        with meta_col:
-            st.markdown(
-                f'<div class="news-page-pill" style="justify-content:center;width:100%">{esc(t(lang, f"Halaman {current_page}/{total_pages}", f"Page {current_page}/{total_pages}"))}</div>',
-                unsafe_allow_html=True,
-            )
-        with next_col:
-            if st.button(t(lang, "Lanjut →", "Next →"), use_container_width=True, disabled=current_page >= total_pages, key="news_next_page"):
-                st.session_state.news_table_page = min(total_pages, current_page + 1)
-                st.rerun()
+        st.markdown(
+            f'<div class="news-pagination"><div class="news-page-meta">{esc(t(lang, f"{filtered_count} artikel cocok dengan filter dan pencarian ini.", f"{filtered_count} articles match this filter and search."))} · {esc(page_summary)}</div></div>',
+            unsafe_allow_html=True,
+        )
+        render_page_jumper(total_pages, current_page, lang)
 
 
 def render_page(nav: str, lang: str, stats: dict[str, object], dr: str, table_df: pd.DataFrame) -> None:

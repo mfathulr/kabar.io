@@ -209,9 +209,32 @@ BASE_CSS = """
   .news-table td .news-line { line-height: 1.35; }
   .news-table td .news-reason { color: #4f473e; }
   .news-table td .news-note { color: #786f62; font-size: 11px; margin-top: 3px; }
-  .news-toolbar { display: grid; grid-template-columns: 1.4fr 0.62fr 0.62fr 0.45fr; gap: 10px; margin: 0 0 12px; align-items: end; }
-  .news-toolbar .toolbar-block { display: flex; flex-direction: column; gap: 6px; }
-  .news-toolbar .toolbar-label { margin: 0; }
+  .news-toolbar-shell {
+    padding: 14px 16px 12px;
+    margin: 0 0 12px;
+    border-radius: 10px;
+    border: 1px solid #e8e0d4;
+    background: linear-gradient(180deg, rgba(248,245,240,0.95), rgba(255,255,255,0.92));
+  }
+  .news-toolbar-title {
+    margin: 0 0 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5f564d;
+  }
+  .news-toolbar-title.search { color: #8c3a10; }
+  .news-toolbar-title.sort { color: #375e4d; margin-top: 10px; }
+  .news-toolbar-hint {
+    margin: 0 0 10px;
+    font-size: 11.5px;
+    line-height: 1.35;
+    color: #786f62;
+  }
+  .news-toolbar-grid { display: grid; gap: 10px; align-items: end; }
+  .news-toolbar-grid.search { grid-template-columns: minmax(0, 1fr); }
+  .news-toolbar-grid.sort { grid-template-columns: 1.1fr 0.72fr 0.38fr; }
   .news-pagination {
     display: flex;
     align-items: center;
@@ -220,7 +243,7 @@ BASE_CSS = """
     margin-top: 10px;
   }
   .news-page-meta { font-size: 11.5px; color: var(--text-soft); }
-  .news-page-controls { display: flex; align-items: center; gap: 8px; }
+  .news-page-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .news-page-pill {
     display: inline-flex;
     align-items: center;
@@ -231,6 +254,21 @@ BASE_CSS = """
     color: #786f62;
     font-size: 11.5px;
     font-weight: 600;
+  }
+  .news-page-pill.is-active {
+    background: #dfe9e4;
+    color: #2d5f47;
+    border: 1px solid rgba(45,95,71,0.14);
+  }
+  .news-page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    color: #8c8278;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
   .news-pill {
     display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px; font-weight: 600;
