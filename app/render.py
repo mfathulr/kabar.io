@@ -212,7 +212,7 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
         "positive": ("Positif", "Positive"),
         "negative": ("Negatif", "Negative"),
         "neutral": ("Netral", "Neutral"),
-        "unknown": ("Tak Diketahui", "Unknown"),
+        "unknown": ("Belum Dilabel", "Unlabeled"),
     }
     rows = []
     for _, article in df.iterrows():
@@ -223,7 +223,7 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
             "<tr class='news-row'>"
             f'<td style="max-width:300px;color:#2d2a25;line-height:1.35">{esc(title)}</td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(category)}</td>'
-            f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "neutral"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
+            f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "unknown"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
             f'<td style="color:#786f62;white-space:nowrap">{round(float(article.get("sentiment_confidence", 0)) * 100)}%</td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(article.get("source_id") or article.get("domain") or "unknown")}</td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(format_article_date(article))}</td>'

@@ -212,6 +212,7 @@ BASE_CSS = """
   .pill-positive { background: #edf7ef; color: #2d7a3a; }
   .pill-negative { background: #fdf0ee; color: #cc2200; }
   .pill-neutral { background: #f2ede8; color: #786f62; }
+  .pill-unknown { background: #f3efe9; color: #8c8278; border: 1px dashed #d3c8bc; }
   .sidebar-brand { padding: 22px 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .sidebar-logo {
     font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #f0ede8;
@@ -263,22 +264,26 @@ BASE_CSS = """
     margin: 0 0 6px;
   }
   .stButton button {
-    border-radius: 8px;
-    padding: 0.25rem 0.7rem;
-    min-height: 1.95rem;
+    border-radius: 10px;
+    padding: 0.34rem 0.9rem;
+    min-height: 2.1rem;
     font-size: 0.82rem;
     line-height: 1;
     border: 1px solid #e4dbd0;
-    background: #faf7f2;
+    background: linear-gradient(180deg, #fbf8f3 0%, #f6f1e9 100%);
     color: #5f564d;
     box-shadow: 0 1px 2px rgba(44,28,12,0.04);
+    font-weight: 650;
+    letter-spacing: 0.01em;
   }
   .stButton button:hover {
-    background: #f5efe6;
+    background: linear-gradient(180deg, #f8f3ec 0%, #f2ece3 100%);
     border-color: #d8cdc1;
     color: #4f473e;
-    box-shadow: 0 4px 10px rgba(44,28,12,0.08);
+    box-shadow: 0 6px 14px rgba(44,28,12,0.08);
+    transform: translateY(-1px) translateX(1px);
   }
+  .nav-footer { height: 14px; }
   .gauge-wrap { display: flex; align-items: center; justify-content: center; }
   .bar-caption { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 12.5px; }
   .chip {
@@ -328,6 +333,27 @@ BASE_CSS = """
   .stToggle button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px var(--focus-ring);
+  }
+  .stButton button {
+    position: relative;
+  }
+  .stButton button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.0) 45%, rgba(255,255,255,0.20) 50%, rgba(255,255,255,0.0) 55%, transparent 100%);
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  .stButton button:hover::after {
+    opacity: 1;
+    animation: nav-sheen 900ms ease-out 1;
+  }
+  @keyframes nav-sheen {
+    from { transform: translateX(-120%); }
+    to { transform: translateX(120%); }
   }
 </style>
 """

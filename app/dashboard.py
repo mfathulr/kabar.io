@@ -55,7 +55,7 @@ def build_source_options(df) -> list[str]:
     return options
 
 
-def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None) -> tuple[str, str, bool]:
+def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None) -> tuple[str, bool]:
     lang = st.session_state.lang
     display_note = localize_source_note(source_note, lang)
     with st.sidebar:
@@ -81,18 +81,6 @@ def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None)
             unsafe_allow_html=True,
         )
 
-        nav = st.radio(
-            t(lang, "Navigasi", "Navigation"),
-            ["analysis", "news"],
-            index=["analysis", "news"].index(st.session_state.nav),
-            format_func=lambda value: {
-                "analysis": t(lang, "Analisis", "Analysis"),
-                "news": t(lang, "Berita", "News"),
-            }[value],
-            label_visibility="collapsed",
-        )
-
-        st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
         lang = st.radio(
             t(lang, "Bahasa", "Language"),
             ["id", "en"],
@@ -103,7 +91,7 @@ def sidebar_controls(source_name: str, source_note: str, refresh_at: str | None)
         )
         dark = st.toggle(t(lang, "Gelap", "Dark"), value=st.session_state.dark)
 
-    return nav, lang, dark
+    return lang, dark
 
 
 def refresh_strip(refresh_at: str | None) -> None:
@@ -241,6 +229,52 @@ def main_filters(show_search: bool, source_options: list[str]) -> tuple[str, str
     return dr, "all" if sent_f == "all" else sent_f, "all" if cat_f == "all" else cat_f, "all" if source_f == "all" else source_f, search
 
 
+def page_navigation(nav: str) -> None:
+    lang = st.session_state.lang
+    st.markdown('<div class="nav-footer"></div>', unsafe_allow_html=True)
+    if nav == "analysis":
+        left, right = st.columns([1, 0.28], gap="small")
+        with right:
+            if st.button(t(lang, "Lihat Detail →", "See Detail →"), use_container_width=True):
+                st.session_state.nav = "news"
+                st.session_state.scroll_to_top = True
+                st.rerun()
+    else:
+        left, right = st.columns([0.28, 1], gap="small")
+        with left:
+            if st.button(t(lang, "← Kembali", "← Back"), use_container_width=True):
+                st.session_state.nav = "analysis"
+                st.session_state.scroll_to_top = True
+                st.rerun()
+
+
+def scroll_to_top() -> None:
+    components.html(
+        """
+        <script>
+        (function () {
+          const run = () => {
+            try {
+              const target = window.parent || window;
+              target.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            } catch (err) {
+              try {
+                (window.parent || window).scrollTo(0, 0);
+              } catch (_) {}
+            }
+          };
+          if (document.readyState === 'complete') {
+            setTimeout(run, 50);
+          } else {
+            window.addEventListener('load', () => setTimeout(run, 50), { once: true });
+          }
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 def recover_sidebar() -> None:
     components.html(
         """
@@ -304,7 +338,8 @@ def main() -> None:
     st.session_state.latest_refresh_at = refresh_at
     source_options = build_source_options(raw_df)
 
-    nav, lang, dark = sidebar_controls(source_name, source_note, refresh_at)
+    lang, dark = sidebar_controls(source_name, source_note, refresh_at)
+    nav = st.session_state.nav
     topbar(nav, lang)
     refresh_strip(refresh_at)
     st.markdown('<div class="topbar-divider"></div>', unsafe_allow_html=True)
@@ -340,6 +375,10 @@ def main() -> None:
     chart_df, table_df = filter_articles(raw_df, dr, source_f, sent_f, cat_f, search if nav == "news" else "")
     stats = build_stats(chart_df, lang)
     render_page(nav, lang, stats, dr, table_df)
+    st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+    page_navigation(nav)
+    if st.session_state.pop("scroll_to_top", False):
+        scroll_to_top()
 
 
 if __name__ == "__main__":
