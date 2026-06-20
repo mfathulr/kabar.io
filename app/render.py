@@ -327,17 +327,20 @@ def render_news_toolbar(lang: str) -> None:
     if "news_visible_columns" not in st.session_state:
         st.session_state.news_visible_columns = list(news_column_keys)
     if "news_sort_mode" not in st.session_state:
-        st.session_state.news_sort_mode = "newest"
+        st.session_state.news_sort_mode = "custom"
     if "news_sort_levels" not in st.session_state:
         st.session_state.news_sort_levels = [
             {"id": uuid.uuid4().hex, "field": "published_at", "direction": "desc"},
         ]
+    if st.session_state.news_sort_mode != "custom":
+        st.session_state.news_sort_mode = "custom"
 
     toolbar_cols = st.columns([0.14, 0.14, 0.72], gap="small")
     with toolbar_cols[0]:
         visible_columns = news_visible_columns()
-        with st.popover(t(lang, "Kolom", "Columns")):
-            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kolom", "Columns"))}</div>', unsafe_allow_html=True)
+        with st.popover(t(lang, "Kolom terpilih", "Selected columns")):
+            st.markdown('<div class="news-columns-popover"></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kolom terpilih", "Selected columns"))}</div>', unsafe_allow_html=True)
             st.caption(t(lang, "Pilih kolom yang ingin ditampilkan.", "Choose the columns to display."))
             selected_columns = []
             checkbox_cols = st.columns(2, gap="small")
@@ -356,70 +359,49 @@ def render_news_toolbar(lang: str) -> None:
                     selected_columns.append(column_key)
             st.session_state.news_visible_columns = selected_columns or list(news_column_keys)
     with toolbar_cols[1]:
-        sort_button_label = t(lang, "Urutkan", "Sort")
-        mode_labels = {
-            "newest": t(lang, "Terbaru", "Newest"),
-            "oldest": t(lang, "Terlama", "Oldest"),
-            "confidence_desc": t(lang, "Conf tinggi", "High conf"),
-            "confidence_asc": t(lang, "Conf rendah", "Low conf"),
-            "attempts_desc": t(lang, "Attempt tinggi", "High attempts"),
-            "custom": t(lang, "Kustom", "Custom"),
-        }
-        sort_button_label = mode_labels.get(st.session_state.news_sort_mode, sort_button_label)
-        if st.session_state.news_sort_mode == "custom" and st.session_state.news_sort_levels:
-            active_levels = []
-            for level in st.session_state.news_sort_levels:
-                field = level.get("field", "")
-                if field:
-                    active_levels.append(compact_labels.get(field, column_labels.get(field, field)))
-            if active_levels:
-                sort_button_label = active_levels[0] if len(active_levels) == 1 else f"{active_levels[0]} +{len(active_levels) - 1}"
-        with st.popover(sort_button_label):
-            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sorting", "Sorting"))}</div>', unsafe_allow_html=True)
-            st.selectbox(
-                t(lang, "Metode", "Method"),
-                options=list(sort_mode_options.keys()),
-                format_func=lambda key: sort_mode_options[key],
-                key="news_sort_mode",
-            )
-            if st.session_state.news_sort_mode == "custom":
-                st.caption(t(lang, "Tambah level sorting sesuai urutan prioritas.", "Add sorting levels in priority order."))
-                if st.button(t(lang, "+ Tambah level", "+ Add level"), use_container_width=True):
-                    st.session_state.news_sort_levels.append({"id": uuid.uuid4().hex, "field": "", "direction": "desc"})
-                    st.rerun()
+        with st.popover(t(lang, "Urutkan", "Sort")):
+            st.markdown('<div class="news-sort-popover"></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Urutkan", "Sort"))}</div>', unsafe_allow_html=True)
+            st.caption(t(lang, "Pilih field dan arah untuk tiap level urutan.", "Choose a field and direction for each sort level."))
+            if st.button(t(lang, "+ Tambah level", "+ Add level"), use_container_width=True):
+                st.session_state.news_sort_levels.append({"id": uuid.uuid4().hex, "field": "", "direction": "desc"})
+                st.rerun()
 
-                sort_field_map = dict(sort_field_options)
-                levels = list(st.session_state.news_sort_levels)
-                updated_levels = []
-                for idx, level in enumerate(levels):
-                    level_id = str(level.get("id") or idx)
-                    st.markdown(f'<div class="news-sort-level">L{idx + 1}</div>', unsafe_allow_html=True)
-                    row_left, row_right, row_x = st.columns([0.56, 0.30, 0.14], gap="small")
-                    with row_left:
-                        field_value = st.selectbox(
-                            t(lang, "Field", "Field"),
-                            options=[""] + [item[0] for item in sort_field_options],
-                            format_func=lambda key: t(lang, "Pilih field", "Choose field") if key == "" else sort_field_map[key],
-                            key=f"news_sort_field_{level_id}",
-                            index=([""] + [item[0] for item in sort_field_options]).index(str(level.get("field", ""))) if str(level.get("field", "")) in ([""] + [item[0] for item in sort_field_options]) else 0,
-                        )
-                    with row_right:
-                        dir_value = st.selectbox(
-                            t(lang, "Arah", "Direction"),
-                            options=["desc", "asc"],
-                            format_func=lambda key: t(lang, "Menurun", "Desc") if key == "desc" else t(lang, "Menaik", "Asc"),
-                            key=f"news_sort_dir_{level_id}",
-                            index=0 if str(level.get("direction", "desc")).lower() == "desc" else 1,
-                        )
-                    with row_x:
-                        if len(levels) > 1 and st.button("×", key=f"news_sort_remove_{level_id}", use_container_width=True):
-                            st.session_state.news_sort_levels = [item for item in st.session_state.news_sort_levels if str(item.get("id")) != level_id]
-                            st.rerun()
-                    updated_levels.append({"id": level_id, "field": field_value, "direction": dir_value})
-                if st.session_state.news_sort_mode == "custom":
-                    st.session_state.news_sort_levels = updated_levels
-            else:
-                st.caption(t(lang, "Preset sorting aktif.", "Preset sorting is active."))
+            sort_field_map = dict(sort_field_options)
+            levels = list(st.session_state.news_sort_levels)
+            updated_levels = []
+
+            for idx, level in enumerate(levels):
+                level_id = str(level.get("id") or idx)
+                st.markdown(f'<div class="news-sort-level">L{idx + 1}</div>', unsafe_allow_html=True)
+
+                field_value = st.selectbox(
+                    t(lang, "Field", "Field"),
+                    options=[""] + [item[0] for item in sort_field_options],
+                    format_func=lambda key: t(lang, "Pilih field", "Choose field") if key == "" else sort_field_map[key],
+                    key=f"news_sort_field_{level_id}",
+                    index=([""] + [item[0] for item in sort_field_options]).index(str(level.get("field", ""))) if str(level.get("field", "")) in ([""] + [item[0] for item in sort_field_options]) else 0,
+                    label_visibility="collapsed",
+                )
+
+                dir_cols = st.columns([1, 0.12], gap="xxsmall")
+                with dir_cols[0]:
+                    dir_value = st.selectbox(
+                        t(lang, "Arah", "Direction"),
+                        options=["desc", "asc"],
+                        format_func=lambda key: t(lang, "Turun", "Desc") if key == "desc" else t(lang, "Naik", "Asc"),
+                        key=f"news_sort_dir_{level_id}",
+                        index=0 if str(level.get("direction", "desc")).lower() == "desc" else 1,
+                        label_visibility="collapsed",
+                    )
+                with dir_cols[1]:
+                    if len(levels) > 1 and st.button("×", key=f"news_sort_remove_{level_id}", use_container_width=True):
+                        st.session_state.news_sort_levels = [item for item in st.session_state.news_sort_levels if str(item.get("id")) != level_id]
+                        st.rerun()
+
+                updated_levels.append({"id": level_id, "field": field_value, "direction": dir_value})
+
+            st.session_state.news_sort_levels = updated_levels
     with toolbar_cols[2]:
         st.text_input(
             "",

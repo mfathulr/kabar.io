@@ -290,12 +290,35 @@ BASE_CSS = """
     display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px; font-weight: 600;
   }
   .news-sort-level {
-    margin: 10px 0 6px;
-    font-size: 10px;
+    margin: 0 0 8px;
+    padding: 3px 5px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #5f564d;
+    color: #8c8278;
+    background: rgba(45, 42, 37, 0.05);
+    border-radius: 3px;
+    display: inline-block;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) div[data-testid="stHorizontalBlock"] {
+    gap: 0.3rem !important;
+    margin-bottom: 2px !important;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) [data-testid="stButton"] button {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.34rem 0.5rem;
+    min-height: 2.5rem;
+    height: 2.5rem;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox [role="combobox"] {
+    min-height: 2.5rem;
+    height: 2.5rem;
   }
   .pill-positive { background: #edf7ef; color: #2d7a3a; }
   .pill-negative { background: #fdf0ee; color: #cc2200; }
@@ -520,9 +543,46 @@ BASE_CSS = """
     margin: 0;
     white-space: nowrap;
   }
-  div[data-testid="stPopover"] > div:nth-child(2) {
-    min-width: 460px;
-    width: min(760px, 85vw);
+  div[data-testid="stPopover"] > div:last-child {
+    min-width: 520px !important;
+    width: min(820px, 88vw) !important;
+  }
+  div[data-testid="stPopover"]:has(.news-columns-popover) > div:last-child {
+    min-width: 520px !important;
+    width: min(820px, 88vw) !important;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) > div:last-child {
+    min-width: 1000px !important;
+    width: min(1400px, 95vw) !important;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox [role="combobox"],
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox,
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stButton button {
+    width: 100%;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox,
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox [data-baseweb="select"],
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox [data-baseweb="select"] > div {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stColumns {
+    gap: 0.9rem;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .news-sort-level {
+    margin-top: 12px;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox [role="combobox"] {
+    min-height: 2.55rem;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stSelectbox [data-baseweb="select"] {
+    min-height: 2.55rem;
+  }
+  div[data-testid="stPopover"]:has(.news-sort-popover) .stCaption,
+  div[data-testid="stPopover"]:has(.news-columns-popover) .stCaption {
+    white-space: normal;
+    line-height: 1.45;
   }
   div[data-testid="stTextInput"] {
     margin-top: 0;
