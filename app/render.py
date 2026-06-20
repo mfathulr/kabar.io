@@ -233,7 +233,24 @@ def format_sort_label(lang: str, key: str) -> str:
     return labels.get(key, key)
 
 
-def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int, int, int, str]:
+def sort_defaults() -> dict[str, str]:
+    return {
+        "published_at": "desc",
+        "confidence": "desc",
+        "title": "asc",
+        "source": "asc",
+        "category": "asc",
+        "sentiment": "asc",
+        "status": "asc",
+        "attempts": "desc",
+    }
+
+
+def sort_column_widths() -> list[float]:
+    return [2.6, 1.05, 1.05, 0.95, 1.05, 2.9, 1.15, 0.95, 0.9, 1.15, 1.45]
+
+
+def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int, int, int, str, str, str]:
     sort_options = {
         "published_at": "published_at",
         "confidence": "sentiment_confidence",
@@ -276,32 +293,12 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
             key="news_table_search",
         )
 
-    sort_cols = st.columns([0.5, 0.22, 0.28], gap="small")
-    with sort_cols[0]:
-        sort_key = st.selectbox(
-            t(lang, "Urutkan", "Sort by"),
-            list(sort_options.keys()),
-            format_func=lambda value: format_sort_label(lang, value),
-            index=list(sort_options.keys()).index(st.session_state.get("news_table_sort", "published_at"))
-            if st.session_state.get("news_table_sort", "published_at") in sort_options
-            else 0,
-            key="news_table_sort",
-            label_visibility="collapsed",
-        )
-    with sort_cols[1]:
-        sort_dir = st.selectbox(
-            t(lang, "Arah", "Direction"),
-            ["desc", "asc"],
-            index=0 if st.session_state.get("news_table_dir", "desc") == "desc" else 1,
-            format_func=lambda value: t(lang, "Terbaru", "Newest") if value == "desc" else t(lang, "Terlama", "Oldest"),
-            key="news_table_dir",
-            label_visibility="collapsed",
-        )
-    with sort_cols[2]:
-        st.markdown(
-            f'<div class="news-toolbar-hint" style="margin:0">{esc(t(lang, "klik header tabel untuk fokus baca", "click table headers to focus reading"))}</div>',
-            unsafe_allow_html=True,
-        )
+    sort_key = st.session_state.get("news_table_sort", "published_at")
+    sort_dir = st.session_state.get("news_table_dir", "desc")
+    sort_sig = (sort_key, sort_dir)
+    if st.session_state.get("news_table_sort_sig") != sort_sig:
+        st.session_state.news_table_page = 1
+        st.session_state.news_table_sort_sig = sort_sig
 
     state_sig = (search.strip(), sort_key, sort_dir, page_size)
     if st.session_state.get("news_table_sig") != state_sig:
@@ -310,7 +307,7 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
 
     filtered = search_articles(df, search)
     if filtered.empty:
-        return filtered, page_size, 1, 0, search
+        return filtered, page_size, 1, 0, search, sort_key, sort_dir
 
     sort_col = sort_options.get(sort_key, "published_at")
     sort_df = filtered.copy()
@@ -357,7 +354,7 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
     start = (current_page - 1) * page_size
     page_df = sort_df.iloc[start : start + page_size].reset_index(drop=True)
 
-    return page_df, page_size, total_pages, len(filtered), search
+    return page_df, page_size, total_pages, len(filtered), search, sort_key, sort_dir
 
 
 def page_items(total_pages: int, current_page: int, window: int = 2) -> list[int | str]:
@@ -400,7 +397,49 @@ def render_page_jumper(total_pages: int, current_page: int, lang: str) -> None:
                     st.rerun()
 
 
-def mk_article_table(df: pd.DataFrame, lang: str, sort_key: str, sort_dir: str) -> str:
+def render_sort_header_row(lang: str, sort_key: str, sort_dir: str) -> None:
+    headers = [
+        t(lang, "Judul", "Title"),
+        t(lang, "Kategori", "Category"),
+        t(lang, "Sentimen", "Sentiment"),
+        t(lang, "Confidence", "Confidence"),
+        t(lang, "Status AI", "AI Status"),
+        t(lang, "Reason AI", "AI Reason"),
+        t(lang, "Sumber", "Source"),
+        t(lang, "Tanggal", "Date"),
+        t(lang, "Attempts", "Attempts"),
+        t(lang, "Diproses", "Processed"),
+        t(lang, "Error", "Error"),
+    ]
+    header_map = {
+        0: "title",
+        1: "category",
+        2: "sentiment",
+        3: "confidence",
+        4: "status",
+        5: "reason",
+        6: "source",
+        7: "published_at",
+        8: "attempts",
+        9: "processed",
+        10: "error",
+    }
+    cols = st.columns(sort_column_widths(), gap="small")
+    defaults = sort_defaults()
+    for idx, label in enumerate(headers):
+        field = header_map[idx]
+        active = field == sort_key
+        arrow = " ▲" if active and sort_dir == "asc" else " ▼" if active else ""
+        with cols[idx]:
+            if st.button(f"{label}{arrow}", key=f"news_sort_{field}", use_container_width=True):
+                next_dir = "asc" if (active and sort_dir == "desc") else "desc" if active else defaults.get(field, "desc")
+                st.session_state.news_table_sort = field
+                st.session_state.news_table_dir = next_dir
+                st.session_state.news_table_page = 1
+                st.rerun()
+
+
+def mk_article_table(df: pd.DataFrame, lang: str) -> str:
     labels = [
         t(lang, "Judul", "Title"),
         t(lang, "Kategori", "Category"),
@@ -420,16 +459,6 @@ def mk_article_table(df: pd.DataFrame, lang: str, sort_key: str, sort_dir: str) 
         "neutral": ("Netral", "Neutral"),
         "unknown": ("Belum Dilabel", "Unlabeled"),
     }
-    sort_label_map = {
-        "published_at": 0,
-        "confidence": 1,
-        "title": 2,
-        "source": 3,
-        "category": 4,
-        "sentiment": 5,
-        "status": 6,
-        "attempts": 8,
-    }
     rows = []
     for _, article in df.iterrows():
         title = article.get("title", "")
@@ -442,7 +471,7 @@ def mk_article_table(df: pd.DataFrame, lang: str, sort_key: str, sort_dir: str) 
         last_error = str(article.get("sentiment_last_error", "")).strip() or "—"
         rows.append(
             "<tr class='news-row'>"
-        f'<td style="max-width:280px;color:#2d2a25;line-height:1.35"><div class="news-line">{esc(title)}</div></td>'
+            f'<td style="max-width:280px;color:#2d2a25;line-height:1.35"><div class="news-line">{esc(title)}</div></td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(category)}</td>'
             f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "unknown"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
             f'<td style="color:#786f62;white-space:nowrap">{round(float(article.get("sentiment_confidence", 0)) * 100)}%</td>'
@@ -458,38 +487,15 @@ def mk_article_table(df: pd.DataFrame, lang: str, sort_key: str, sort_dir: str) 
     return f"""
     <div class="table-wrap">
       <table class="news-table">
-        <thead><tr>{"".join(_table_header_cell(label, idx, sort_key, sort_dir, sort_label_map, lang) for idx, label in enumerate(labels))}</tr></thead>
         <tbody>{"".join(rows)}</tbody>
       </table>
     </div>
     """
 
 
-def _table_header_cell(label: str, idx: int, sort_key: str, sort_dir: str, sort_label_map: dict[str, int], lang: str) -> str:
-    header_key = {
-        0: "title",
-        1: "category",
-        2: "sentiment",
-        3: "confidence",
-        4: "status",
-        5: "reason",
-        6: "source",
-        7: "published_at",
-        8: "attempts",
-        9: "processed",
-        10: "error",
-    }.get(idx, "")
-    is_active = header_key == sort_key
-    arrow = "▲" if sort_dir == "asc" else "▼"
-    marker = f' <span class="news-sort-arrow">{arrow}</span>' if is_active else ""
-    return f'<th class="{"is-active" if is_active else ""}">{esc(label)}{marker}</th>'
-
-
 def render_news(table_df: pd.DataFrame, lang: str) -> None:
-    page_df, page_size, total_pages, filtered_count, _search = render_news_controls(table_df, lang)
+    page_df, page_size, total_pages, filtered_count, _search, sort_key, sort_dir = render_news_controls(table_df, lang)
     current_page = int(st.session_state.get("news_table_page", 1))
-    sort_key = st.session_state.get("news_table_sort", "published_at")
-    sort_dir = st.session_state.get("news_table_dir", "desc")
     if page_df.empty:
         table_html = f"""
         <div class="panel" style="border-style:dashed;background:#fbf9f5">
@@ -497,7 +503,7 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
         </div>
         """
     else:
-        table_html = mk_article_table(page_df, lang, sort_key, sort_dir)
+        table_html = mk_article_table(page_df, lang)
     page_summary = t(lang, f"Halaman {current_page}/{total_pages}", f"Page {current_page}/{total_pages}")
     start_row = 0 if filtered_count == 0 else ((current_page - 1) * page_size) + 1
     end_row = min(current_page * page_size, filtered_count)
@@ -516,6 +522,22 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
               <span>{esc(t(lang, f"Menampilkan {start_row} sampai {end_row} dari {filtered_count} artikel.", f"Showing {start_row} to {end_row} of {filtered_count} entries."))}</span>
               <span class="news-page-pill">{esc(page_summary)}</span>
             </div>
+            <div class="news-toolbar-shell" style="margin-bottom:12px">
+              <div class="news-toolbar-title">{esc(t(lang, "Klik judul kolom untuk sort", "Click column headers to sort"))}</div>
+              <div class="news-toolbar-hint" style="margin-bottom:0">{esc(t(lang, "Klik lagi pada header yang sama untuk membalik arah urutan.", "Click the same header again to reverse sort direction."))}</div>
+            </div>
+          </div>
+        </div>
+        """
+        ),
+        unsafe_allow_html=True,
+    )
+    render_sort_header_row(lang, sort_key, sort_dir)
+    st.markdown(
+        dedent(
+            f"""
+        <div class="section-pad" style="padding-top:0">
+          <div class="panel" style="padding-top:0">
             {table_html}
           </div>
         </div>
