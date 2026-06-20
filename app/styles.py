@@ -196,7 +196,7 @@ BASE_CSS = """
     50% { transform: translateY(-4px) rotate(1.5deg); }
   }
   .table-wrap { overflow-x: auto; }
-  table.news-table { width: 100%; border-collapse: collapse; min-width: 580px; }
+  table.news-table { width: 100%; border-collapse: collapse; min-width: 1180px; }
   .news-table thead tr { border-bottom: 2px solid #e8e0d4; }
   .news-table tbody tr { transition: background-color 120ms ease, transform 120ms ease; }
   .news-table tbody tr:hover { background: rgba(245, 242, 236, 0.8); }
@@ -205,6 +205,8 @@ BASE_CSS = """
     padding: 10px 12px 9px; text-align: left; font-size: 10px; font-weight: 700; color: var(--text-soft);
     text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap;
   }
+  .news-table th.is-active { color: #2d2a25; }
+  .news-sort-arrow { margin-left: 3px; font-size: 9px; color: #8c8278; }
   .news-table td { padding: 10px 12px; font-size: 12px; vertical-align: top; border-bottom: 1px solid #e8e0d4; color: var(--text-soft); }
   .news-table td .news-line { line-height: 1.35; }
   .news-table td .news-reason { color: #4f473e; }
@@ -224,17 +226,19 @@ BASE_CSS = """
     text-transform: uppercase;
     color: #5f564d;
   }
-  .news-toolbar-title.search { color: #8c3a10; }
-  .news-toolbar-title.sort { color: #375e4d; margin-top: 10px; }
+  .news-toolbar-right { text-align: right; }
+  .news-toolbar-inline-note {
+    margin-top: 4px;
+    color: #786f62;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
   .news-toolbar-hint {
     margin: 0 0 10px;
     font-size: 11.5px;
     line-height: 1.35;
     color: #786f62;
   }
-  .news-toolbar-grid { display: grid; gap: 10px; align-items: end; }
-  .news-toolbar-grid.search { grid-template-columns: minmax(0, 1fr); }
-  .news-toolbar-grid.sort { grid-template-columns: 1.1fr 0.72fr 0.38fr; }
   .news-pagination {
     display: flex;
     align-items: center;
@@ -256,9 +260,9 @@ BASE_CSS = """
     font-weight: 600;
   }
   .news-page-pill.is-active {
-    background: #dfe9e4;
-    color: #2d5f47;
-    border: 1px solid rgba(45,95,71,0.14);
+    background: #2d2a25;
+    color: #f7f3ed;
+    border: 1px solid #2d2a25;
   }
   .news-page-ellipsis {
     display: inline-flex;
@@ -269,6 +273,14 @@ BASE_CSS = """
     color: #8c8278;
     font-weight: 700;
     letter-spacing: 0.04em;
+  }
+  .news-page-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
   }
   .news-pill {
     display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px; font-weight: 600;

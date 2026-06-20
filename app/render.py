@@ -244,33 +244,40 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
         "status": "sentiment_status",
         "attempts": "sentiment_attempts",
     }
-    st.markdown(
-        f"""
-        <div class="news-toolbar-shell">
-          <div class="news-toolbar-title search">{esc(t(lang, "Cari", "Search"))}</div>
-          <div class="news-toolbar-hint">{esc(t(lang, "Cari judul, reason, sumber, status, atau error AI.", "Search title, reason, source, status, or AI error."))}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    search = st.text_input(
-        t(lang, "Cari di detail...", "Search in detail..."),
-        value=st.session_state.get("news_table_search", ""),
-        placeholder=t(lang, "Cari judul, reason, sumber, atau status...", "Search title, reason, source, or status..."),
-        label_visibility="collapsed",
-        key="news_table_search",
-    )
-    st.markdown(
-        f"""
-        <div class="news-toolbar-shell">
-          <div class="news-toolbar-title sort">{esc(t(lang, "Urutkan & Batasi", "Sort & Limit"))}</div>
-          <div class="news-toolbar-hint">{esc(t(lang, "Urutan, arah, dan jumlah baris tampil di sini.", "Order, direction, and visible rows are controlled here."))}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    cols = st.columns([1.1, 0.72, 0.38], gap="small")
-    with cols[0]:
+    toolbar_cols = st.columns([0.62, 0.38], gap="large")
+    with toolbar_cols[0]:
+        st.markdown(
+            f'<div class="news-toolbar-title">{esc(t(lang, "Show", "Show"))}</div>',
+            unsafe_allow_html=True,
+        )
+        page_size = st.selectbox(
+            "",
+            [5, 10, 20, 30, 50],
+            index=[5, 10, 20, 30, 50].index(st.session_state.get("news_table_size", 5))
+            if st.session_state.get("news_table_size", 5) in [5, 10, 20, 30, 50]
+            else 0,
+            key="news_table_size",
+            label_visibility="collapsed",
+        )
+        st.markdown(
+            f'<div class="news-toolbar-inline-note">{esc(t(lang, "entries", "entries"))}</div>',
+            unsafe_allow_html=True,
+        )
+    with toolbar_cols[1]:
+        st.markdown(
+            f'<div class="news-toolbar-title news-toolbar-right">{esc(t(lang, "Search", "Search"))}</div>',
+            unsafe_allow_html=True,
+        )
+        search = st.text_input(
+            "",
+            value=st.session_state.get("news_table_search", ""),
+            placeholder=t(lang, "Cari judul, reason, sumber, atau status...", "Search title, reason, source, or status..."),
+            label_visibility="collapsed",
+            key="news_table_search",
+        )
+
+    sort_cols = st.columns([0.5, 0.22, 0.28], gap="small")
+    with sort_cols[0]:
         sort_key = st.selectbox(
             t(lang, "Urutkan", "Sort by"),
             list(sort_options.keys()),
@@ -281,7 +288,7 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
             key="news_table_sort",
             label_visibility="collapsed",
         )
-    with cols[1]:
+    with sort_cols[1]:
         sort_dir = st.selectbox(
             t(lang, "Arah", "Direction"),
             ["desc", "asc"],
@@ -290,15 +297,10 @@ def render_news_controls(df: pd.DataFrame, lang: str) -> tuple[pd.DataFrame, int
             key="news_table_dir",
             label_visibility="collapsed",
         )
-    with cols[2]:
-        page_size = st.selectbox(
-            t(lang, "Baris", "Rows"),
-            [10, 20, 30, 50],
-            index=[10, 20, 30, 50].index(st.session_state.get("news_table_size", 10))
-            if st.session_state.get("news_table_size", 10) in [10, 20, 30, 50]
-            else 0,
-            key="news_table_size",
-            label_visibility="collapsed",
+    with sort_cols[2]:
+        st.markdown(
+            f'<div class="news-toolbar-hint" style="margin:0">{esc(t(lang, "klik header tabel untuk fokus baca", "click table headers to focus reading"))}</div>',
+            unsafe_allow_html=True,
         )
 
     state_sig = (search.strip(), sort_key, sort_dir, page_size)
@@ -398,7 +400,7 @@ def render_page_jumper(total_pages: int, current_page: int, lang: str) -> None:
                     st.rerun()
 
 
-def mk_article_table(df: pd.DataFrame, lang: str) -> str:
+def mk_article_table(df: pd.DataFrame, lang: str, sort_key: str, sort_dir: str) -> str:
     labels = [
         t(lang, "Judul", "Title"),
         t(lang, "Kategori", "Category"),
@@ -418,6 +420,16 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
         "neutral": ("Netral", "Neutral"),
         "unknown": ("Belum Dilabel", "Unlabeled"),
     }
+    sort_label_map = {
+        "published_at": 0,
+        "confidence": 1,
+        "title": 2,
+        "source": 3,
+        "category": 4,
+        "sentiment": 5,
+        "status": 6,
+        "attempts": 8,
+    }
     rows = []
     for _, article in df.iterrows():
         title = article.get("title", "")
@@ -430,7 +442,7 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
         last_error = str(article.get("sentiment_last_error", "")).strip() or "—"
         rows.append(
             "<tr class='news-row'>"
-            f'<td style="max-width:280px;color:#2d2a25;line-height:1.35"><div class="news-line">{esc(title)}</div></td>'
+        f'<td style="max-width:280px;color:#2d2a25;line-height:1.35"><div class="news-line">{esc(title)}</div></td>'
             f'<td style="color:#786f62;white-space:nowrap">{esc(category)}</td>'
             f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "unknown"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
             f'<td style="color:#786f62;white-space:nowrap">{round(float(article.get("sentiment_confidence", 0)) * 100)}%</td>'
@@ -446,16 +458,38 @@ def mk_article_table(df: pd.DataFrame, lang: str) -> str:
     return f"""
     <div class="table-wrap">
       <table class="news-table">
-        <thead><tr>{"".join(f"<th>{esc(label)}</th>" for label in labels)}</tr></thead>
+        <thead><tr>{"".join(_table_header_cell(label, idx, sort_key, sort_dir, sort_label_map, lang) for idx, label in enumerate(labels))}</tr></thead>
         <tbody>{"".join(rows)}</tbody>
       </table>
     </div>
     """
 
 
+def _table_header_cell(label: str, idx: int, sort_key: str, sort_dir: str, sort_label_map: dict[str, int], lang: str) -> str:
+    header_key = {
+        0: "title",
+        1: "category",
+        2: "sentiment",
+        3: "confidence",
+        4: "status",
+        5: "reason",
+        6: "source",
+        7: "published_at",
+        8: "attempts",
+        9: "processed",
+        10: "error",
+    }.get(idx, "")
+    is_active = header_key == sort_key
+    arrow = "▲" if sort_dir == "asc" else "▼"
+    marker = f' <span class="news-sort-arrow">{arrow}</span>' if is_active else ""
+    return f'<th class="{"is-active" if is_active else ""}">{esc(label)}{marker}</th>'
+
+
 def render_news(table_df: pd.DataFrame, lang: str) -> None:
     page_df, page_size, total_pages, filtered_count, _search = render_news_controls(table_df, lang)
     current_page = int(st.session_state.get("news_table_page", 1))
+    sort_key = st.session_state.get("news_table_sort", "published_at")
+    sort_dir = st.session_state.get("news_table_dir", "desc")
     if page_df.empty:
         table_html = f"""
         <div class="panel" style="border-style:dashed;background:#fbf9f5">
@@ -463,8 +497,10 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
         </div>
         """
     else:
-        table_html = mk_article_table(page_df, lang)
+        table_html = mk_article_table(page_df, lang, sort_key, sort_dir)
     page_summary = t(lang, f"Halaman {current_page}/{total_pages}", f"Page {current_page}/{total_pages}")
+    start_row = 0 if filtered_count == 0 else ((current_page - 1) * page_size) + 1
+    end_row = min(current_page * page_size, filtered_count)
     st.markdown(
         dedent(
             f"""
@@ -477,7 +513,7 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
               </div>
             </div>
             <div class="news-page-meta" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-              <span>{esc(t(lang, f"{filtered_count} artikel cocok dengan filter dan pencarian ini.", f"{filtered_count} articles match this filter and search."))}</span>
+              <span>{esc(t(lang, f"Menampilkan {start_row} sampai {end_row} dari {filtered_count} artikel.", f"Showing {start_row} to {end_row} of {filtered_count} entries."))}</span>
               <span class="news-page-pill">{esc(page_summary)}</span>
             </div>
             {table_html}
@@ -488,10 +524,6 @@ def render_news(table_df: pd.DataFrame, lang: str) -> None:
         unsafe_allow_html=True,
     )
     if total_pages > 1:
-        st.markdown(
-            f'<div class="news-pagination"><div class="news-page-meta">{esc(t(lang, f"{filtered_count} artikel cocok dengan filter dan pencarian ini.", f"{filtered_count} articles match this filter and search."))} · {esc(page_summary)}</div></div>',
-            unsafe_allow_html=True,
-        )
         render_page_jumper(total_pages, current_page, lang)
 
 
