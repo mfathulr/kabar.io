@@ -44,6 +44,14 @@ BASE_CSS = """
     padding-right: 28px;
     box-sizing: border-box;
   }
+  div[data-testid="stHorizontalBlock"]:has(button[data-testid="stPopoverButton"]):has(div[data-testid="stTextInput"]) {
+    gap: 0.45rem !important;
+    align-items: flex-start;
+    margin-bottom: 2px;
+  }
+  div[data-testid="stHorizontalBlock"]:has(button[data-testid="stPopoverButton"]):has(div[data-testid="stTextInput"]) > div {
+    padding-top: 0 !important;
+  }
   section[data-testid="stSidebar"] {
     background: #1e1a14;
     border-right: 1px solid rgba(255,255,255,0.06);
@@ -200,6 +208,10 @@ BASE_CSS = """
     max-height: min(70vh, 720px);
     overflow: auto;
     border-radius: 8px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
   }
   .news-table-empty {
     padding: 2px 0 0;
@@ -209,9 +221,10 @@ BASE_CSS = """
   }
   .news-grid-table {
     width: 100%;
-    min-width: 1120px;
+    min-width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+    table-layout: auto;
   }
   .news-grid-table thead th {
     position: sticky;
@@ -253,17 +266,6 @@ BASE_CSS = """
   .news-grid-table tbody tr:last-child td {
     border-bottom: 0;
   }
-  .news-grid-table th:nth-child(1), .news-grid-table td:nth-child(1) { width: 24%; }
-  .news-grid-table th:nth-child(2), .news-grid-table td:nth-child(2) { width: 10%; }
-  .news-grid-table th:nth-child(3), .news-grid-table td:nth-child(3) { width: 8%; }
-  .news-grid-table th:nth-child(4), .news-grid-table td:nth-child(4) { width: 8%; }
-  .news-grid-table th:nth-child(5), .news-grid-table td:nth-child(5) { width: 10%; }
-  .news-grid-table th:nth-child(6), .news-grid-table td:nth-child(6) { width: 20%; }
-  .news-grid-table th:nth-child(7), .news-grid-table td:nth-child(7) { width: 9%; }
-  .news-grid-table th:nth-child(8), .news-grid-table td:nth-child(8) { width: 10%; }
-  .news-grid-table th:nth-child(9), .news-grid-table td:nth-child(9) { width: 6%; }
-  .news-grid-table th:nth-child(10), .news-grid-table td:nth-child(10) { width: 9%; }
-  .news-grid-table th:nth-child(11), .news-grid-table td:nth-child(11) { width: 9%; }
   .cell-title {
     max-width: 260px;
     color: #2d2a25;
@@ -287,6 +289,14 @@ BASE_CSS = """
   .news-pill {
     display: inline-block; padding: 2px 9px; border-radius: 11px; font-size: 11px; font-weight: 600;
   }
+  .news-sort-level {
+    margin: 10px 0 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5f564d;
+  }
   .pill-positive { background: #edf7ef; color: #2d7a3a; }
   .pill-negative { background: #fdf0ee; color: #cc2200; }
   .pill-neutral { background: #f2ede8; color: #786f62; }
@@ -294,7 +304,7 @@ BASE_CSS = """
   @media (max-width: 900px) {
     .section-pad { padding: 14px 18px 18px; }
     .news-grid-table thead th { padding: 9px 8px 8px; font-size: 10px; }
-    .news-grid-table { min-width: 1020px; }
+    .news-grid-table { min-width: 100%; }
     .news-grid-table td { padding: 10px 10px; font-size: 10.5px; }
     .cell-title { max-width: 200px; }
     .cell-reason { max-width: 180px; }
@@ -302,7 +312,7 @@ BASE_CSS = """
   }
   @media (max-width: 640px) {
     .news-grid-table thead th { padding: 8px 8px 7px; }
-    .news-grid-table { min-width: 960px; }
+    .news-grid-table { min-width: 100%; }
     .news-grid-table td { padding: 8px 8px; }
     .news-pill { padding: 2px 7px; font-size: 10.5px; }
     .news-source-link { width: 100%; justify-content: center; }
@@ -357,24 +367,30 @@ BASE_CSS = """
     letter-spacing: 0.08em;
     margin: 0 0 6px;
   }
-  .stButton button {
+  .stButton button,
+  .stPopover button,
+  button[data-testid="stPopoverButton"],
+  button[kind="secondary"] {
     border-radius: 10px;
     padding: 0.34rem 0.9rem;
     min-height: 2.1rem;
     font-size: 0.82rem;
     line-height: 1;
-    border: 1px solid #e4dbd0;
-    background: linear-gradient(180deg, #fbf8f3 0%, #f6f1e9 100%);
-    color: #5f564d;
-    box-shadow: 0 1px 2px rgba(44,28,12,0.04);
+    border: 1px solid #dcd3c8;
+    background: #ffffff;
+    color: #4f473e;
+    box-shadow: 0 1px 2px rgba(44,28,12,0.03);
     font-weight: 650;
     letter-spacing: 0.01em;
   }
-  .stButton button:hover {
-    background: linear-gradient(180deg, #f8f3ec 0%, #f2ece3 100%);
-    border-color: #d8cdc1;
-    color: #4f473e;
-    box-shadow: 0 6px 14px rgba(44,28,12,0.08);
+  .stButton button:hover,
+  .stPopover button:hover,
+  button[data-testid="stPopoverButton"]:hover,
+  button[kind="secondary"]:hover {
+    background: #ffffff;
+    border-color: #cfc5b8;
+    color: #2d2a25;
+    box-shadow: 0 6px 14px rgba(44,28,12,0.06);
     transform: translateY(-1px) translateX(1px);
   }
   .nav-footer { height: 14px; }
@@ -411,6 +427,9 @@ BASE_CSS = """
     outline-offset: 1px;
   }
   .stButton button,
+  .stPopover button,
+  button[data-testid="stPopoverButton"],
+  button[kind="secondary"],
   .stTextInput input,
   .stNumberInput input,
   .stSelectbox [role="combobox"],
@@ -420,6 +439,9 @@ BASE_CSS = """
     transition: box-shadow 120ms ease, border-color 120ms ease, transform 120ms ease, background-color 120ms ease;
   }
   .stButton button:focus-visible,
+  .stPopover button:focus-visible,
+  button[data-testid="stPopoverButton"]:focus-visible,
+  button[kind="secondary"]:focus-visible,
   .stTextInput input:focus-visible,
   .stNumberInput input:focus-visible,
   .stSelectbox [role="combobox"]:focus-visible,
@@ -428,10 +450,16 @@ BASE_CSS = """
     outline: none;
     box-shadow: 0 0 0 3px var(--focus-ring);
   }
-  .stButton button {
+  .stButton button,
+  .stPopover button,
+  button[data-testid="stPopoverButton"],
+  button[kind="secondary"] {
     position: relative;
   }
-  .stButton button::after {
+  .stButton button::after,
+  .stPopover button::after,
+  button[data-testid="stPopoverButton"]::after,
+  button[kind="secondary"]::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -441,9 +469,74 @@ BASE_CSS = """
     transform: translateX(-120%);
     opacity: 0;
   }
-  .stButton button:hover::after {
+  .stButton button:hover::after,
+  .stPopover button:hover::after,
+  button[data-testid="stPopoverButton"]:hover::after,
+  button[kind="secondary"]:hover::after {
     opacity: 1;
     animation: nav-sheen 900ms ease-out 1;
+  }
+  button[data-testid="stPopoverButton"] {
+    background: #2d2a25;
+    border: 1px solid #403930;
+    color: #f3efe9;
+    box-shadow: 0 1px 2px rgba(17,13,9,0.22);
+    width: 100%;
+    height: 2.5rem;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    justify-content: space-between;
+    gap: 0.35rem;
+  }
+  button[data-testid="stPopoverButton"]:hover {
+    background: #3a342d;
+    border-color: #4d453c;
+    color: #ffffff;
+    box-shadow: 0 6px 14px rgba(17,13,9,0.24);
+    transform: translateY(-1px) translateX(1px);
+  }
+  button[data-testid="stPopoverButton"] > div {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+  }
+  button[data-testid="stPopoverButton"] p,
+  button[data-testid="stPopoverButton"] span,
+  button[data-testid="stPopoverButton"] svg {
+    color: currentColor;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
+  button[data-testid="stPopoverButton"] svg {
+    opacity: 0.95;
+  }
+  button[data-testid="stPopoverButton"] p {
+    margin: 0;
+    white-space: nowrap;
+  }
+  div[data-testid="stPopover"] > div:nth-child(2) {
+    min-width: 460px;
+    width: min(760px, 85vw);
+  }
+  div[data-testid="stTextInput"] {
+    margin-top: 0;
+  }
+  div[data-testid="stTextInput"] input {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding-top: 0.34rem;
+    padding-bottom: 0.34rem;
+    box-sizing: border-box;
+  }
+  div[data-testid="stTextInput"] input::placeholder {
+    color: #8a8075;
+    opacity: 1;
   }
   @keyframes nav-sheen {
     from { transform: translateX(-120%); }

@@ -406,24 +406,8 @@ def search_articles(df: pd.DataFrame, query: str) -> pd.DataFrame:
         return df
 
     q = query.lower().strip()
-    haystack = (
-        df["title"].fillna("").astype(str)
-        + " "
-        + df["description"].fillna("").astype(str)
-        + " "
-        + df["category"].fillna("").astype(str)
-        + " "
-        + df["source_id"].fillna("").astype(str)
-        + " "
-        + df["sentiment"].fillna("").astype(str)
-        + " "
-        + df["sentiment_reason"].fillna("").astype(str)
-        + " "
-        + df["sentiment_status"].fillna("").astype(str)
-        + " "
-        + df["sentiment_last_error"].fillna("").astype(str)
-    ).str.lower()
-    return df[haystack.str.contains(q, na=False)].reset_index(drop=True)
+    title_series = df["title"].fillna("").astype(str).str.lower()
+    return df[title_series.str.contains(q, na=False)].reset_index(drop=True)
 
 
 def build_stats(df: pd.DataFrame, lang: str) -> dict[str, object]:

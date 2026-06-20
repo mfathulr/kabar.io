@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import uuid
 
 import pandas as pd
 import streamlit as st
@@ -261,37 +262,253 @@ def news_header_label(lang: str, key: str) -> str:
 
 
 def render_news_toolbar(lang: str) -> None:
-    st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Search", "Search"))}</div>', unsafe_allow_html=True)
-    st.text_input(
-        "",
-        value=st.session_state.get("news_table_search", ""),
-        placeholder=t(lang, "Cari judul, alasan, sumber, status, atau error...", "Search title, reason, source, status, or error..."),
-        key="news_table_search",
-        label_visibility="collapsed",
-    )
-
-
-def render_news_header(lang: str) -> str:
-    headers = [
+    news_column_keys = [
+        "published_at",
         "title",
+        "source",
         "category",
         "sentiment",
         "confidence",
         "status",
         "reason",
-        "source",
-        "published_at",
         "attempts",
         "processed",
         "error",
     ]
+    column_labels = {
+        "published_at": news_header_label(lang, "published_at"),
+        "title": news_header_label(lang, "title"),
+        "source": news_header_label(lang, "source"),
+        "category": news_header_label(lang, "category"),
+        "sentiment": news_header_label(lang, "sentiment"),
+        "confidence": news_header_label(lang, "confidence"),
+        "status": news_header_label(lang, "status"),
+        "reason": news_header_label(lang, "reason"),
+        "attempts": news_header_label(lang, "attempts"),
+        "processed": news_header_label(lang, "processed"),
+        "error": news_header_label(lang, "error"),
+    }
+    compact_labels = {
+        "published_at": t(lang, "Tgl", "Date"),
+        "title": t(lang, "Judul", "Title"),
+        "source": t(lang, "Sumber", "Source"),
+        "category": t(lang, "Kat", "Cat"),
+        "sentiment": t(lang, "Sent", "Sent"),
+        "confidence": t(lang, "Conf", "Conf"),
+        "status": t(lang, "Status", "Status"),
+        "reason": t(lang, "Alasan", "Reason"),
+        "attempts": t(lang, "Attempts", "Attempts"),
+        "processed": t(lang, "Proc", "Proc"),
+        "error": t(lang, "Error", "Error"),
+    }
+
+    sort_mode_options = {
+        "newest": t(lang, "Terbaru", "Newest"),
+        "oldest": t(lang, "Terlama", "Oldest"),
+        "confidence_desc": t(lang, "Confidence tinggi", "High confidence"),
+        "confidence_asc": t(lang, "Confidence rendah", "Low confidence"),
+        "attempts_desc": t(lang, "Attempts tinggi", "High attempts"),
+        "custom": t(lang, "Kustom", "Custom"),
+    }
+    sort_field_options = [
+        ("published_at", t(lang, "Tanggal", "Date")),
+        ("title", t(lang, "Judul", "Title")),
+        ("source", t(lang, "Sumber", "Source")),
+        ("category", t(lang, "Kategori", "Category")),
+        ("sentiment", t(lang, "Sentimen", "Sentiment")),
+        ("confidence", t(lang, "Confidence", "Confidence")),
+        ("status", t(lang, "Status AI", "AI Status")),
+        ("reason", t(lang, "Reason AI", "AI Reason")),
+        ("attempts", t(lang, "Attempts", "Attempts")),
+        ("processed", t(lang, "Diproses", "Processed")),
+        ("error", t(lang, "Error", "Error")),
+    ]
+
+    if "news_visible_columns" not in st.session_state:
+        st.session_state.news_visible_columns = list(news_column_keys)
+    if "news_sort_mode" not in st.session_state:
+        st.session_state.news_sort_mode = "newest"
+    if "news_sort_levels" not in st.session_state:
+        st.session_state.news_sort_levels = [
+            {"id": uuid.uuid4().hex, "field": "published_at", "direction": "desc"},
+        ]
+
+    toolbar_cols = st.columns([0.14, 0.14, 0.72], gap="small")
+    with toolbar_cols[0]:
+        visible_columns = news_visible_columns()
+        with st.popover(t(lang, "Kolom", "Columns")):
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Kolom", "Columns"))}</div>', unsafe_allow_html=True)
+            st.caption(t(lang, "Pilih kolom yang ingin ditampilkan.", "Choose the columns to display."))
+            selected_columns = []
+            checkbox_cols = st.columns(2, gap="small")
+            for idx, column_key in enumerate(news_column_keys):
+                col = checkbox_cols[idx % 2]
+                with col:
+                    checked = st.checkbox(
+                        column_labels[column_key],
+                        value=st.session_state.get(
+                            f"news_col_{column_key}",
+                            column_key in (st.session_state.news_visible_columns or news_column_keys),
+                        ),
+                        key=f"news_col_{column_key}",
+                    )
+                if checked:
+                    selected_columns.append(column_key)
+            st.session_state.news_visible_columns = selected_columns or list(news_column_keys)
+    with toolbar_cols[1]:
+        sort_button_label = t(lang, "Urutkan", "Sort")
+        mode_labels = {
+            "newest": t(lang, "Terbaru", "Newest"),
+            "oldest": t(lang, "Terlama", "Oldest"),
+            "confidence_desc": t(lang, "Conf tinggi", "High conf"),
+            "confidence_asc": t(lang, "Conf rendah", "Low conf"),
+            "attempts_desc": t(lang, "Attempt tinggi", "High attempts"),
+            "custom": t(lang, "Kustom", "Custom"),
+        }
+        sort_button_label = mode_labels.get(st.session_state.news_sort_mode, sort_button_label)
+        if st.session_state.news_sort_mode == "custom" and st.session_state.news_sort_levels:
+            active_levels = []
+            for level in st.session_state.news_sort_levels:
+                field = level.get("field", "")
+                if field:
+                    active_levels.append(compact_labels.get(field, column_labels.get(field, field)))
+            if active_levels:
+                sort_button_label = active_levels[0] if len(active_levels) == 1 else f"{active_levels[0]} +{len(active_levels) - 1}"
+        with st.popover(sort_button_label):
+            st.markdown(f'<div class="toolbar-label">{esc(t(lang, "Sorting", "Sorting"))}</div>', unsafe_allow_html=True)
+            st.selectbox(
+                t(lang, "Metode", "Method"),
+                options=list(sort_mode_options.keys()),
+                format_func=lambda key: sort_mode_options[key],
+                key="news_sort_mode",
+            )
+            if st.session_state.news_sort_mode == "custom":
+                st.caption(t(lang, "Tambah level sorting sesuai urutan prioritas.", "Add sorting levels in priority order."))
+                if st.button(t(lang, "+ Tambah level", "+ Add level"), use_container_width=True):
+                    st.session_state.news_sort_levels.append({"id": uuid.uuid4().hex, "field": "", "direction": "desc"})
+                    st.rerun()
+
+                sort_field_map = dict(sort_field_options)
+                levels = list(st.session_state.news_sort_levels)
+                updated_levels = []
+                for idx, level in enumerate(levels):
+                    level_id = str(level.get("id") or idx)
+                    st.markdown(f'<div class="news-sort-level">L{idx + 1}</div>', unsafe_allow_html=True)
+                    row_left, row_right, row_x = st.columns([0.56, 0.30, 0.14], gap="small")
+                    with row_left:
+                        field_value = st.selectbox(
+                            t(lang, "Field", "Field"),
+                            options=[""] + [item[0] for item in sort_field_options],
+                            format_func=lambda key: t(lang, "Pilih field", "Choose field") if key == "" else sort_field_map[key],
+                            key=f"news_sort_field_{level_id}",
+                            index=([""] + [item[0] for item in sort_field_options]).index(str(level.get("field", ""))) if str(level.get("field", "")) in ([""] + [item[0] for item in sort_field_options]) else 0,
+                        )
+                    with row_right:
+                        dir_value = st.selectbox(
+                            t(lang, "Arah", "Direction"),
+                            options=["desc", "asc"],
+                            format_func=lambda key: t(lang, "Menurun", "Desc") if key == "desc" else t(lang, "Menaik", "Asc"),
+                            key=f"news_sort_dir_{level_id}",
+                            index=0 if str(level.get("direction", "desc")).lower() == "desc" else 1,
+                        )
+                    with row_x:
+                        if len(levels) > 1 and st.button("×", key=f"news_sort_remove_{level_id}", use_container_width=True):
+                            st.session_state.news_sort_levels = [item for item in st.session_state.news_sort_levels if str(item.get("id")) != level_id]
+                            st.rerun()
+                    updated_levels.append({"id": level_id, "field": field_value, "direction": dir_value})
+                if st.session_state.news_sort_mode == "custom":
+                    st.session_state.news_sort_levels = updated_levels
+            else:
+                st.caption(t(lang, "Preset sorting aktif.", "Preset sorting is active."))
+    with toolbar_cols[2]:
+        st.text_input(
+            "",
+            value=st.session_state.get("news_table_search", ""),
+            placeholder=t(lang, "Cari judul...", "Search title..."),
+            key="news_table_search",
+            label_visibility="collapsed",
+        )
+
+
+def news_column_order() -> list[str]:
+    return [
+        "published_at",
+        "title",
+        "source",
+        "category",
+        "sentiment",
+        "confidence",
+        "status",
+        "reason",
+        "attempts",
+        "processed",
+        "error",
+    ]
+
+
+def news_visible_columns() -> list[str]:
+    all_columns = news_column_order()
+    selected = [column for column in st.session_state.get("news_visible_columns", all_columns) if column in all_columns]
+    return selected or all_columns
+
+
+def news_sort_key_map() -> dict[str, str]:
+    return {
+        "published_at": "__sort_published",
+        "title": "__sort_title",
+        "source": "__sort_source",
+        "category": "__sort_category",
+        "sentiment": "__sort_sentiment",
+        "confidence": "__sort_confidence",
+        "status": "__sort_status_rank",
+        "reason": "__sort_reason",
+        "attempts": "__sort_attempts",
+        "processed": "__sort_processed",
+        "error": "__sort_error",
+    }
+
+
+def apply_news_sort(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    mode = str(st.session_state.get("news_sort_mode", "newest"))
+    preset = {
+        "newest": [("__sort_published", False), ("__sort_processed", False)],
+        "oldest": [("__sort_published", True), ("__sort_processed", True)],
+        "confidence_desc": [("__sort_confidence", False), ("__sort_published", False)],
+        "confidence_asc": [("__sort_confidence", True), ("__sort_published", False)],
+        "attempts_desc": [("__sort_attempts", False), ("__sort_published", False)],
+    }
+    specs: list[tuple[str, bool]] = list(preset.get(mode, []))
+    if mode == "custom":
+        for level in st.session_state.get("news_sort_levels", []):
+            field = str(level.get("field", "")).strip()
+            direction = str(level.get("direction", "desc")).strip().lower()
+            if not field:
+                continue
+            mapped = news_sort_key_map().get(field)
+            if mapped:
+                specs.append((mapped, direction != "desc"))
+    if not specs:
+        specs = preset["newest"]
+
+    sort_columns = [column for column, _ in specs if column in df.columns]
+    if not sort_columns:
+        return df
+    ascending = [ascending for column, ascending in specs if column in df.columns]
+    return df.sort_values(sort_columns, ascending=ascending, na_position="last").reset_index(drop=True)
+
+
+def render_news_header(lang: str, visible_columns: list[str] | None = None) -> str:
+    headers = visible_columns or news_column_order()
     labels = []
     for key in headers:
         labels.append(f'<th class="news-th"><span class="news-th-label">{esc(news_header_label(lang, key))}</span></th>')
     return "".join(labels)
 
 
-def render_news_rows(df: pd.DataFrame, lang: str) -> str:
+def render_news_rows(df: pd.DataFrame, lang: str, visible_columns: list[str] | None = None) -> str:
     sent_label = {
         "positive": ("Positif", "Positive"),
         "negative": ("Negatif", "Negative"),
@@ -303,6 +520,8 @@ def render_news_rows(df: pd.DataFrame, lang: str) -> str:
         "processing": ("Memproses", "Processing"),
         "pending": ("Menunggu", "Pending"),
     }
+    columns = visible_columns or news_column_order()
+
     def safe_text(value: object, fallback: str = "—") -> str:
         if value is None or pd.isna(value):
             return fallback
@@ -324,63 +543,85 @@ def render_news_rows(df: pd.DataFrame, lang: str) -> str:
         error = safe_text(article.get("error_display", article.get("sentiment_last_error", "")))
         confidence_raw = article.get("confidence_display", article.get("sentiment_confidence", 0))
         confidence = 0 if confidence_raw is None or pd.isna(confidence_raw) else confidence_raw
-        rows.append(
-            "<tr>"
-            f'<td class="cell-title">{esc(title)}</td>'
-            f'<td class="cell-meta">{esc(category)}</td>'
-            f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "unknown"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>'
-            f'<td class="cell-meta">{int(round(float(confidence)))}%</td>'
-            f'<td><span class="news-pill pill-{"positive" if status == "done" else "neutral" if status == "processing" else "unknown"}">{esc(status_label.get(status, status_label["pending"])[0 if lang == "id" else 1])}</span></td>'
-            f'<td class="cell-reason">{esc(reason)}</td>'
-            f'<td class="cell-meta">{esc(source)}</td>'
-            f'<td class="cell-meta">{esc(published)}</td>'
-            f'<td class="cell-meta">{attempts}</td>'
-            f'<td class="cell-meta">{esc(processed)}</td>'
-            f'<td class="cell-error">{esc(error)}</td>'
-            "</tr>"
-        )
+        cells: list[str] = []
+        for column in columns:
+            if column == "published_at":
+                cells.append(f'<td class="cell-meta">{esc(published)}</td>')
+            elif column == "title":
+                cells.append(f'<td class="cell-title">{esc(title)}</td>')
+            elif column == "source":
+                cells.append(f'<td class="cell-meta">{esc(source)}</td>')
+            elif column == "category":
+                cells.append(f'<td class="cell-meta">{esc(category)}</td>')
+            elif column == "sentiment":
+                cells.append(f'<td><span class="news-pill pill-{sent if sent in {"positive","negative","neutral"} else "unknown"}">{esc(sent_label.get(sent, sent_label["unknown"])[0 if lang == "id" else 1])}</span></td>')
+            elif column == "confidence":
+                cells.append(f'<td class="cell-meta">{int(round(float(confidence)))}%</td>')
+            elif column == "status":
+                cells.append(f'<td><span class="news-pill pill-{"positive" if status == "done" else "neutral" if status == "processing" else "unknown"}">{esc(status_label.get(status, status_label["pending"])[0 if lang == "id" else 1])}</span></td>')
+            elif column == "reason":
+                cells.append(f'<td class="cell-reason">{esc(reason)}</td>')
+            elif column == "attempts":
+                cells.append(f'<td class="cell-meta">{attempts}</td>')
+            elif column == "processed":
+                cells.append(f'<td class="cell-meta">{esc(processed)}</td>')
+            elif column == "error":
+                cells.append(f'<td class="cell-error">{esc(error)}</td>')
+        rows.append("<tr>" + "".join(cells) + "</tr>")
     return "".join(rows)
 
 
 def render_news(table_df: pd.DataFrame, lang: str) -> None:
     search = st.session_state.get("news_table_search", "")
-    content_col = st.columns([1], gap="small")[0]
-    with content_col:
-        render_news_toolbar(lang)
+    render_news_toolbar(lang)
 
-        filtered = search_articles(table_df, search)
-        sorted_df = filtered.copy()
-        date_col = choose_date_col(sorted_df)
-        sorted_df[date_col] = pd.to_datetime(sorted_df[date_col], errors="coerce", utc=True)
-        sorted_df = sorted_df.sort_values(date_col, ascending=False, na_position="last").reset_index(drop=True)
-        sorted_df["sentiment_confidence"] = pd.to_numeric(sorted_df["sentiment_confidence"], errors="coerce")
-        sorted_df["sentiment_attempts"] = pd.to_numeric(sorted_df["sentiment_attempts"], errors="coerce")
-        sorted_df["__published"] = pd.to_datetime(sorted_df[date_col], errors="coerce", utc=True)
-        sorted_df["__processed"] = pd.to_datetime(sorted_df["sentiment_processed_at"], errors="coerce", utc=True)
-        display_df = build_news_table_df(sorted_df, lang)
-        if not display_df.empty:
-            display_df["published_at_display"] = sorted_df["__published"].dt.tz_convert("Asia/Jakarta").dt.strftime("%d %b %Y %H:%M").fillna("—").to_list() if "__published" in sorted_df.columns else ["—"] * len(display_df)
-            display_df["sentiment_processed_display"] = sorted_df["__processed"].dt.tz_convert("Asia/Jakarta").dt.strftime("%d %b %H:%M").fillna("—").to_list() if "__processed" in sorted_df.columns else ["—"] * len(display_df)
+    filtered = search_articles(table_df, search)
+    sorted_df = filtered.copy()
+    date_col = choose_date_col(sorted_df)
+    sorted_df[date_col] = pd.to_datetime(sorted_df[date_col], errors="coerce", utc=True)
+    sorted_df = sorted_df.sort_values(date_col, ascending=False, na_position="last").reset_index(drop=True)
+    sorted_df["sentiment_confidence"] = pd.to_numeric(sorted_df["sentiment_confidence"], errors="coerce")
+    sorted_df["sentiment_attempts"] = pd.to_numeric(sorted_df["sentiment_attempts"], errors="coerce")
+    sorted_df["__published"] = pd.to_datetime(sorted_df[date_col], errors="coerce", utc=True)
+    sorted_df["__processed"] = pd.to_datetime(sorted_df["sentiment_processed_at"], errors="coerce", utc=True)
+    display_df = build_news_table_df(sorted_df, lang)
+    if not display_df.empty:
+        display_df["published_at_display"] = sorted_df["__published"].dt.tz_convert("Asia/Jakarta").dt.strftime("%d %b %Y %H:%M").fillna("—").to_list() if "__published" in sorted_df.columns else ["—"] * len(display_df)
+        display_df["sentiment_processed_display"] = sorted_df["__processed"].dt.tz_convert("Asia/Jakarta").dt.strftime("%d %b %H:%M").fillna("—").to_list() if "__processed" in sorted_df.columns else ["—"] * len(display_df)
+        display_df["__sort_published"] = pd.to_datetime(sorted_df["__published"], errors="coerce", utc=True)
+        display_df["__sort_processed"] = pd.to_datetime(sorted_df["__processed"], errors="coerce", utc=True)
+        display_df["__sort_title"] = display_df["title_display"].fillna("").astype(str).str.lower()
+        display_df["__sort_source"] = display_df["source_display"].fillna("").astype(str).str.lower()
+        display_df["__sort_category"] = display_df["category_display"].fillna("").astype(str).str.lower()
+        display_df["__sort_sentiment"] = display_df["sentiment_display"].fillna("").astype(str).str.lower()
+        display_df["__sort_confidence"] = pd.to_numeric(display_df["confidence_display"], errors="coerce")
+        display_df["__sort_attempts"] = pd.to_numeric(display_df["attempts_display"], errors="coerce")
+        status_rank = {"done": 0, "processing": 1, "pending": 2}
+        display_df["__sort_status_rank"] = display_df["status_display"].fillna("").astype(str).str.lower().map(status_rank).fillna(99)
+        display_df["__sort_reason"] = display_df["reason_display"].fillna("").astype(str).str.lower()
+        display_df["__sort_error"] = display_df["error_display"].fillna("").astype(str).str.lower()
+        display_df = apply_news_sort(display_df)
 
-        if display_df.empty:
-            st.markdown(
-                f'<div class="news-table-empty">{esc(t(lang, "Tidak ada artikel yang cocok dengan filter ini.", "No articles match this filter."))}</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f"""
-                <div class="news-table-scroll">
-                  <table class="news-grid-table">
-                    <thead><tr>{render_news_header(lang)}</tr></thead>
-                    <tbody>
-                      {render_news_rows(display_df, lang)}
-                    </tbody>
-                  </table>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    if display_df.empty:
+        st.markdown(
+            f'<div class="news-table-empty">{esc(t(lang, "Tidak ada artikel yang cocok dengan filter ini.", "No articles match this filter."))}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        visible_columns = news_visible_columns()
+        st.markdown(
+            f"""
+            <div class="news-table-scroll">
+              <table class="news-grid-table">
+                <thead><tr>{render_news_header(lang, visible_columns)}</tr></thead>
+                <tbody>
+                  {render_news_rows(display_df, lang, visible_columns)}
+                </tbody>
+              </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_page(nav: str, lang: str, stats: dict[str, object], dr: str, table_df: pd.DataFrame) -> None:
